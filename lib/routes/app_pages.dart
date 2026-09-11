@@ -13,8 +13,12 @@ import 'package:f_roble_market/features/listings/ui/pages/create_listing_page.da
 import 'package:f_roble_market/features/listings/ui/pages/listing_detail_page.dart';
 import 'package:f_roble_market/features/listings/ui/viewmodels/catalog_view_model.dart';
 import 'package:f_roble_market/features/listings/ui/viewmodels/create_listing_view_model.dart';
+import 'package:f_roble_market/features/listings/ui/viewmodels/follows_view_model.dart';
 import 'package:f_roble_market/features/listings/ui/viewmodels/listing_detail_view_model.dart';
 import 'package:f_roble_market/features/listings/ui/viewmodels/my_listings_view_model.dart';
+import 'package:f_roble_market/features/profiles/ui/pages/profile_args.dart';
+import 'package:f_roble_market/features/profiles/ui/pages/user_profile_page.dart';
+import 'package:f_roble_market/features/profiles/ui/viewmodels/user_profile_view_model.dart';
 import 'package:f_roble_market/routes/app_routes.dart';
 
 /// Registra una instancia recien creada, descartando la que hubiera.
@@ -35,14 +39,20 @@ class HomeBinding extends Bindings {
   void dependencies() {
     Get.lazyPut(() => HomeViewModel(), fenix: true);
     Get.lazyPut(
-      () => CatalogViewModel(Get.find(), Get.find<SessionViewModel>()),
+      () => CatalogViewModel(
+        Get.find(),
+        Get.find(),
+        Get.find<FollowsViewModel>(),
+      ),
       fenix: true,
     );
     Get.lazyPut(
       () => MyListingsViewModel(
         Get.find(),
         Get.find(),
+        Get.find(),
         Get.find<SessionViewModel>(),
+        Get.find<FollowsViewModel>(),
       ),
       fenix: true,
     );
@@ -65,6 +75,25 @@ class ListingDetailBinding extends Bindings {
         qa: Get.find(),
         chats: Get.find(),
         dispatcher: Get.find(),
+        follows: Get.find<FollowsViewModel>(),
+        session: Get.find<SessionViewModel>(),
+      ),
+    );
+  }
+}
+
+/// Como el detalle, depende del argumento de la ruta: instancia nueva en cada
+/// entrada, o el segundo perfil que se abra mostraria el primero.
+class UserProfileBinding extends Bindings {
+  @override
+  void dependencies() {
+    final args = Get.arguments as ProfileArgs;
+    _putFresh(
+      UserProfileViewModel(
+        userId: args.userId,
+        userName: args.name,
+        listings: Get.find(),
+        ratings: Get.find(),
         session: Get.find<SessionViewModel>(),
       ),
     );
@@ -89,7 +118,11 @@ class CreateListingBinding extends Bindings {
   @override
   void dependencies() {
     Get.lazyPut(
-      () => CreateListingViewModel(Get.find(), Get.find<SessionViewModel>()),
+      () => CreateListingViewModel(
+        Get.find(),
+        Get.find(),
+        Get.find<SessionViewModel>(),
+      ),
       fenix: true,
     );
   }
@@ -114,6 +147,11 @@ abstract class AppPages {
       name: AppRoutes.createListing,
       page: () => const CreateListingPage(),
       binding: CreateListingBinding(),
+    ),
+    GetPage(
+      name: AppRoutes.userProfile,
+      page: () => const UserProfilePage(),
+      binding: UserProfileBinding(),
     ),
     GetPage(
       name: AppRoutes.chat,

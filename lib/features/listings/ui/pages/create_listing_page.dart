@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
 
 import 'package:f_roble_market/features/listings/domain/models/car_listing.dart';
 import 'package:f_roble_market/features/listings/ui/viewmodels/create_listing_view_model.dart';
+import 'package:f_roble_market/features/vehicles/domain/models/car_brand.dart';
+import 'package:f_roble_market/features/vehicles/domain/models/car_model.dart';
 
 /// Publicar un carro: caracteristicas basicas y hasta tres fotos
 /// (requisito 4). Solo se llega aqui con sesion iniciada.
@@ -19,26 +18,56 @@ class CreateListingPage extends GetView<CreateListingViewModel> {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text('Fotos', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 4),
-          Text(
-            'Hasta ${CarListing.maxImages}. La primera es la portada.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          const SizedBox(height: 12),
-          // Las observables se leen dentro del propio Obx: si solo se leen
-          // dentro del hijo, GetX no ve ninguna y lanza «improper use».
-          Obx(
-            () => _PhotoStrip(
-              images: controller.images.toList(),
-              canAddPhoto: controller.canAddPhoto,
-              onRemove: controller.removePhoto,
-              onPick: controller.pickPhoto,
+          // Sin almacenamiento no hay donde subir una foto, asi que el
+          // formulario no lo ofrece en vez de aceptar algo que se perderia.
+          // Cuando lo haya, vuelve aqui el selector: el modelo, las columnas
+          // `image_1..3` y `CarPhoto` ya lo esperan.
+          Card(
+            margin: EdgeInsets.zero,
+            child: ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Todavia no se pueden subir fotos'),
+              subtitle: Text(
+                'Tu publicacion se vera con un color de fondo. Las fotos llegan '
+                'cuando se habilite el almacenamiento.',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
             ),
           ),
           const SizedBox(height: 24),
-          _Field(label: 'Marca', onChanged: (v) => controller.brand.value = v),
-          _Field(label: 'Modelo', onChanged: (v) => controller.model.value = v),
+          Obx(
+            () => DropdownButtonFormField<CarBrand>(
+              initialValue: controller.brand.value,
+              decoration: const InputDecoration(labelText: 'Marca'),
+              items: [
+                for (final brand in controller.brands)
+                  DropdownMenuItem(value: brand, child: Text(brand.name)),
+              ],
+              onChanged: controller.selectBrand,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Obx(
+            () => DropdownButtonFormField<CarModel>(
+              initialValue: controller.model.value,
+              decoration: InputDecoration(
+                labelText: 'Modelo',
+                // Sin marca no hay modelos que ofrecer, y decirlo es mejor que
+                // una lista vacia que parece rota.
+                helperText: controller.brand.value == null
+                    ? 'Elige primero la marca'
+                    : null,
+              ),
+              items: [
+                for (final model in controller.models)
+                  DropdownMenuItem(value: model, child: Text(model.name)),
+              ],
+              onChanged: controller.models.isEmpty
+                  ? null
+                  : controller.selectModel,
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -133,121 +162,6 @@ class CreateListingPage extends GetView<CreateListingViewModel> {
           ),
           const SizedBox(height: 32),
         ],
-      ),
-    );
-  }
-}
-
-class _PhotoStrip extends StatelessWidget {
-  const _PhotoStrip({
-    required this.images,
-    required this.canAddPhoto,
-    required this.onRemove,
-    required this.onPick,
-  });
-
-  final List<String> images;
-  final bool canAddPhoto;
-  final void Function(String path) onRemove;
-  final void Function(ImageSource source) onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 104,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        children: [
-          for (final path in images)
-            Padding(
-              padding: const EdgeInsets.only(right: 10),
-              child: Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.file(
-                      File(path),
-                      width: 104,
-                      height: 104,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Container(
-                        width: 104,
-                        height: 104,
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                        child: const Icon(Icons.image_not_supported_outlined),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: IconButton.filledTonal(
-                      iconSize: 16,
-                      visualDensity: VisualDensity.compact,
-                      onPressed: () => onRemove(path),
-                      icon: const Icon(Icons.close),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          if (canAddPhoto) _AddPhotoButton(onPick: onPick),
-        ],
-      ),
-    );
-  }
-}
-
-class _AddPhotoButton extends StatelessWidget {
-  const _AddPhotoButton({required this.onPick});
-
-  final void Function(ImageSource source) onPick;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: () => showModalBottomSheet<void>(
-        context: context,
-        builder: (sheetContext) => SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Elegir de la galeria'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  onPick(ImageSource.gallery);
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_camera_outlined),
-                title: const Text('Tomar una foto'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  onPick(ImageSource.camera);
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-      child: Container(
-        width: 104,
-        height: 104,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Theme.of(context).colorScheme.outline),
-        ),
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add_a_photo_outlined),
-            SizedBox(height: 6),
-            Text('Agregar'),
-          ],
-        ),
       ),
     );
   }

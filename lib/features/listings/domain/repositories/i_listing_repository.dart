@@ -15,6 +15,17 @@ abstract class IListingRepository {
 
   Future<CarListing> changeStatus(String listingId, ListingStatus status);
 
+  /// Cierra la venta dejando constancia de quien compro. Es lo que alimenta el
+  /// historial de compras y lo que habilita las calificaciones.
+  Future<CarListing> markSold({
+    required String listingId,
+    required String buyerId,
+    required String buyerName,
+  });
+
+  /// Lo que `userId` ha comprado, de lo mas reciente a lo mas antiguo.
+  Future<List<CarListing>> purchasesOf(String userId);
+
   /// Publicaciones que `userId` sigue, y por las que recibe notificaciones.
   Future<List<CarListing>> followedBy(String userId);
 
@@ -25,7 +36,4 @@ abstract class IListingRepository {
   /// Quienes siguen la publicacion. Es a quienes hay que avisarles cuando
   /// cambia de estado o aparece una pregunta o una respuesta.
   Future<List<String>> followerIdsOf(String listingId);
-
-  /// Las marcas presentes en el catalogo, para el filtro.
-  Future<List<String>> brands();
 }

@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:f_roble_market/core/widgets/empty_state.dart';
 import 'package:f_roble_market/features/listings/domain/models/listing_filter.dart';
 import 'package:f_roble_market/features/listings/ui/viewmodels/catalog_view_model.dart';
+import 'package:f_roble_market/features/listings/ui/widgets/brand_strip.dart';
 import 'package:f_roble_market/features/listings/ui/widgets/filter_sheet.dart';
 import 'package:f_roble_market/features/listings/ui/widgets/listing_card.dart';
 import 'package:f_roble_market/routes/app_routes.dart';
@@ -32,18 +33,33 @@ class CatalogPage extends GetView<CatalogViewModel> {
           }),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(64),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: TextField(
-              onChanged: controller.onQueryChanged,
-              textInputAction: TextInputAction.search,
-              decoration: const InputDecoration(
-                hintText: 'Marca, modelo o ciudad',
-                prefixIcon: Icon(Icons.search),
-                isDense: true,
+          preferredSize: const Size.fromHeight(116),
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: TextField(
+                  onChanged: controller.onQueryChanged,
+                  textInputAction: TextInputAction.search,
+                  decoration: const InputDecoration(
+                    hintText: 'Marca, modelo o ciudad',
+                    prefixIcon: Icon(Icons.search),
+                    isDense: true,
+                  ),
+                ),
               ),
-            ),
+              // La lista se copia **dentro** del `Obx`: pasar la observable
+              // tal cual no la lee aqui, y sin lectura no hay dependencia —la
+              // tira se quedaria vacia aunque llegaran las marcas.
+              Obx(
+                () => BrandStrip(
+                  brands: [...controller.brands],
+                  selected: controller.selectedBrand,
+                  onSelected: controller.selectBrand,
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
           ),
         ),
       ),
@@ -91,7 +107,7 @@ class CatalogPage extends GetView<CatalogViewModel> {
       isScrollControlled: true,
       builder: (_) => FilterSheet(
         initial: controller.filter.value,
-        brands: controller.brands,
+        brands: [for (final brand in controller.brands) brand.name],
       ),
     );
     if (result != null) controller.applyFilter(result);

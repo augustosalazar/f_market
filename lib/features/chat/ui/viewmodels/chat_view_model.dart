@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 
 import 'package:f_roble_market/features/auth/ui/viewmodels/session_view_model.dart';
@@ -29,6 +31,8 @@ class ChatViewModel extends GetxController {
   final message = RxnString();
   final error = RxnString();
 
+  StreamSubscription<ChatMessage>? _incoming;
+
   String get myId => session.requireUser.userId;
 
   @override
@@ -37,15 +41,52 @@ class ChatViewModel extends GetxController {
     load();
   }
 
+  @override
+  void onClose() {
+    _incoming?.cancel();
+    super.onClose();
+  }
+
   Future<void> load() async {
     loading.value = true;
     try {
       await chats.markRead(threadId);
       thread.value = await chats.threadById(threadId);
       messages.assignAll(await chats.messagesOf(threadId));
+      _listen();
     } finally {
       loading.value = false;
     }
+  }
+
+  /// Escucha los mensajes que lleguen de ahora en adelante. Se lee primero y
+  /// se escucha despues: el tiempo real no reenvia lo que ya estaba.
+  void _listen() {
+    _incoming?.cancel();
+    _incoming = chats.watchMessages(threadId).listen(
+      (incoming) {
+        if (!_append(incoming)) return;
+        if (incoming.senderId != myId) chats.markRead(threadId);
+      },
+      // Un hilo sin mensajes todavia no tiene coleccion en el arbol, y
+      // suscribirse a una que no existe se rechaza. Deja de escuchar sin
+      // romper la pantalla; al primer envio se vuelve a intentar.
+      onError: (Object _) {
+        _incoming?.cancel();
+        _incoming = null;
+      },
+    );
+  }
+
+  /// Pinta un mensaje una sola vez.
+  ///
+  /// El mismo mensaje llega por dos caminos: el eco del socket y la respuesta
+  /// de `send`. La clave la pone el servidor al escribirlo, asi que en ambos
+  /// es la misma y basta con mirarla. Devuelve si lo anadio.
+  bool _append(ChatMessage incoming) {
+    if (messages.any((m) => m.id == incoming.id)) return false;
+    messages.add(incoming);
+    return true;
   }
 
   Future<void> send(String text) async {
@@ -60,7 +101,11 @@ class ChatViewModel extends GetxController {
         senderId: myId,
         text: body,
       );
-      messages.add(sent);
+      // Puede que el eco ya lo haya pintado: `send` no vuelve hasta actualizar
+      // tambien la cabecera del hilo, y en esa espera el socket se adelanta.
+      _append(sent);
+      // Si la suscripcion se cayo por no existir la coleccion, ahora ya existe.
+      if (_incoming == null) _listen();
 
       if (!current.muted) {
         final recipient =

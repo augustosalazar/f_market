@@ -41,6 +41,9 @@ class CarListing {
     required this.images,
     required this.status,
     required this.createdAt,
+    this.buyerId,
+    this.buyerName,
+    this.soldAt,
   });
 
   static const int maxImages = 3;
@@ -61,6 +64,18 @@ class CarListing {
   final ListingStatus status;
   final DateTime createdAt;
 
+  /// Quien compro, cuando la venta quedo registrada. Es lo que convierte una
+  /// publicacion vendida en una linea del historial de compras de alguien, y
+  /// lo que habilita que las dos partes se califiquen.
+  final String? buyerId;
+  final String? buyerName;
+  final DateTime? soldAt;
+
+  /// Una venta registrada: vendida **y** con comprador. Marcar «Vendido» sin
+  /// decir a quien deja la publicacion cerrada pero sin contraparte.
+  bool get hasRegisteredSale =>
+      status == ListingStatus.sold && (buyerId?.isNotEmpty ?? false);
+
   String get title => '$brand $model $year';
 
   /// La imagen de portada, o `null` si la publicacion no tiene fotos.
@@ -78,6 +93,9 @@ class CarListing {
     String? description,
     List<String>? images,
     ListingStatus? status,
+    String? buyerId,
+    String? buyerName,
+    DateTime? soldAt,
   }) {
     return CarListing(
       id: id,
@@ -95,6 +113,9 @@ class CarListing {
       images: images ?? this.images,
       status: status ?? this.status,
       createdAt: createdAt,
+      buyerId: buyerId ?? this.buyerId,
+      buyerName: buyerName ?? this.buyerName,
+      soldAt: soldAt ?? this.soldAt,
     );
   }
 }

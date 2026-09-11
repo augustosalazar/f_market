@@ -1,15 +1,20 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:f_roble_market/core/data/dummy_data.dart';
-import 'package:f_roble_market/features/auth/data/local_auth_repository.dart';
+import 'package:f_roble_market/features/auth/data/datasources/in_memory_auth_data_source.dart';
+import 'package:f_roble_market/features/auth/data/repositories/auth_repository.dart';
 import 'package:f_roble_market/features/auth/ui/viewmodels/session_view_model.dart';
-import 'package:f_roble_market/features/chat/data/local_chat_repository.dart';
+import 'package:f_roble_market/features/chat/data/datasources/in_memory_chat_data_source.dart';
+import 'package:f_roble_market/features/chat/data/repositories/chat_repository.dart';
 import 'package:f_roble_market/features/chat/ui/viewmodels/chat_view_model.dart';
-import 'package:f_roble_market/features/listings/data/local_listing_repository.dart';
+import 'package:f_roble_market/features/listings/data/datasources/in_memory_listing_data_source.dart';
+import 'package:f_roble_market/features/listings/data/repositories/listing_repository.dart';
 import 'package:f_roble_market/features/listings/domain/models/listing_status.dart';
+import 'package:f_roble_market/features/listings/ui/viewmodels/follows_view_model.dart';
 import 'package:f_roble_market/features/listings/ui/viewmodels/listing_detail_view_model.dart';
-import 'package:f_roble_market/features/notifications/data/local_notification_repository.dart';
-import 'package:f_roble_market/features/qa/data/local_qa_repository.dart';
+import 'package:f_roble_market/features/notifications/data/repositories/in_memory_notification_repository.dart';
+import 'package:f_roble_market/features/qa/data/datasources/in_memory_qa_data_source.dart';
+import 'package:f_roble_market/features/qa/data/repositories/qa_repository.dart';
 
 /// Las reglas de a quien se le avisa son el corazon de los requisitos 6, 7 y
 /// 8, y ahora viven en los controladores. Se prueban contra la fuente local,
@@ -17,13 +22,13 @@ import 'package:f_roble_market/features/qa/data/local_qa_repository.dart';
 /// en vez de llamar a `Get.snackbar`.
 void main() {
   late DummyData data;
-  late LocalListingRepository listings;
-  late LocalChatRepository chats;
-  late LocalNotificationRepository notifications;
+  late ListingRepository listings;
+  late ChatRepository chats;
+  late InMemoryNotificationRepository notifications;
   late SessionViewModel session;
 
   Future<SessionViewModel> sessionOf(String email) async {
-    final vm = SessionViewModel(LocalAuthRepository(data));
+    final vm = SessionViewModel(AuthRepository(InMemoryAuthDataSource(data)));
     await vm.login(email: email, password: DummyData.demoPassword);
     return vm;
   }
@@ -31,17 +36,20 @@ void main() {
   ListingDetailViewModel detailOf(String listingId) => ListingDetailViewModel(
     listingId: listingId,
     listings: listings,
-    qa: LocalQaRepository(data),
+    qa: QaRepository(InMemoryQaDataSource(data)),
     chats: chats,
     dispatcher: notifications,
+    follows: FollowsViewModel(listings, session),
     session: session,
   );
 
   setUp(() async {
     data = DummyData();
-    listings = LocalListingRepository(data);
-    chats = LocalChatRepository(data);
-    notifications = LocalNotificationRepository(data);
+    // Los mismos repositorios que usa la app, con los datasources de memoria:
+    // asi lo que se prueba es el codigo que corre de verdad.
+    listings = ListingRepository(InMemoryListingDataSource(data));
+    chats = ChatRepository(InMemoryChatDataSource(data));
+    notifications = InMemoryNotificationRepository();
     session = await sessionOf('carla@demo.com');
   });
 
@@ -54,8 +62,10 @@ void main() {
     await detail.ask('Recibe permuta?');
 
     expect(detail.error.value, isNull);
+    // Ana sigue l_1, asi que le llega por seguirla; Beto por vender. Carla,
+    // que es quien pregunto, no recibe nada.
     expect(await notifications.forUser('u_beto'), hasLength(1));
-    expect(await notifications.forUser('u_ana'), hasLength(4));
+    expect(await notifications.forUser('u_ana'), hasLength(1));
     expect(await notifications.forUser('u_carla'), isEmpty);
   });
 
@@ -67,7 +77,8 @@ void main() {
     await detail.ask('Hola');
 
     expect(detail.error.value, contains('tu propia publicacion'));
-    expect(await notifications.forUser('u_ana'), hasLength(3));
+    // Nadie recibe nada: la pregunta ni se llego a publicar.
+    expect(await notifications.forUser('u_ana'), isEmpty);
   });
 
   test('cambiar el estado avisa a los seguidores, no al vendedor', () async {
@@ -78,7 +89,7 @@ void main() {
     await detail.changeStatus(ListingStatus.reserved);
 
     expect(detail.listing.value?.status.name, 'reserved');
-    expect(await notifications.forUser('u_ana'), hasLength(4));
+    expect(await notifications.forUser('u_ana'), hasLength(1));
     expect(await notifications.forUser('u_beto'), isEmpty);
   });
 

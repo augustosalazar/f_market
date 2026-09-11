@@ -8,4 +8,7 @@ abstract class AppRoutes {
   static const listingDetail = '/listing';
   static const createListing = '/listing/new';
   static const chat = '/chat';
+
+  /// El perfil publico de cualquiera. Recibe un `ProfileArgs`.
+  static const userProfile = '/user';
 }

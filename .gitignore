@@ -48,3 +48,6 @@ app.*.map.json
 .widget_preview/
 
 .env
+
+# Configuracion del MCP de Roble: lleva un token dentro.
+.roble.mcp.env

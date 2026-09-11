@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:f_roble_market/core/data/dummy_data.dart';
+import 'package:f_roble_market/core/utils/message_listener.dart';
 import 'package:f_roble_market/features/auth/ui/viewmodels/session_view_model.dart';
 import 'package:f_roble_market/routes/app_routes.dart';
 
@@ -13,7 +14,7 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _LoginPageState extends State<LoginPage> with MessageListener<LoginPage> {
   final controller = Get.find<SessionViewModel>();
 
   // Prellenados con la cuenta de demo: en esta fase los datos son locales y
@@ -25,6 +26,8 @@ class _LoginPageState extends State<LoginPage> {
   void initState() {
     super.initState();
     controller.error.value = null;
+    // Quien llega aqui porque se le cayo la sesion merece saberlo.
+    listenMessages(message: controller.expired);
   }
 
   @override

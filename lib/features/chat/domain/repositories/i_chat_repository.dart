@@ -6,6 +6,11 @@ abstract class IChatRepository {
 
   Future<ChatThread?> threadById(String threadId);
 
+  /// Los chats abiertos sobre una publicacion. Es de donde salen los
+  /// candidatos a comprador cuando el vendedor la cierra: quien pregunto por
+  /// privado es quien pudo haberla comprado.
+  Future<List<ChatThread>> threadsOfListing(String listingId);
+
   /// Devuelve el chat de esa publicacion con ese comprador, creandolo si aun
   /// no existe. Es el punto de entrada del boton «Chat privado».
   Future<ChatThread> openThread({
@@ -14,6 +19,11 @@ abstract class IChatRepository {
   });
 
   Future<List<ChatMessage>> messagesOf(String threadId);
+
+  /// Los mensajes que lleguen de ahora en adelante. No reenvia los que ya
+  /// estaban: la pantalla lee primero con `messagesOf` y pega encima lo que
+  /// vaya llegando. Hay que cancelar la suscripcion al salir.
+  Stream<ChatMessage> watchMessages(String threadId);
 
   Future<ChatMessage> send({
     required String threadId,

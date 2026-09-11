@@ -1,10 +1,12 @@
 import 'package:get/get.dart';
 
 import 'package:f_roble_market/features/auth/ui/viewmodels/session_view_model.dart';
+import 'package:f_roble_market/features/chat/domain/models/chat_thread.dart';
 import 'package:f_roble_market/features/chat/domain/repositories/i_chat_repository.dart';
 import 'package:f_roble_market/features/listings/domain/models/car_listing.dart';
 import 'package:f_roble_market/features/listings/domain/models/listing_status.dart';
 import 'package:f_roble_market/features/listings/domain/repositories/i_listing_repository.dart';
+import 'package:f_roble_market/features/listings/ui/viewmodels/follows_view_model.dart';
 import 'package:f_roble_market/features/notifications/domain/models/app_notification.dart';
 import 'package:f_roble_market/features/notifications/domain/repositories/i_notification_repository.dart';
 import 'package:f_roble_market/features/qa/domain/models/question.dart';
@@ -22,6 +24,7 @@ class ListingDetailViewModel extends GetxController {
     required this.qa,
     required this.chats,
     required this.dispatcher,
+    required this.follows,
     required this.session,
   });
 
@@ -30,12 +33,12 @@ class ListingDetailViewModel extends GetxController {
   final IQaRepository qa;
   final IChatRepository chats;
   final INotificationDispatcher dispatcher;
+  final FollowsViewModel follows;
   final SessionViewModel session;
 
   final listing = Rxn<CarListing>();
   final questions = <Question>[].obs;
   final loading = true.obs;
-  final following = false.obs;
   final sending = false.obs;
   final photoIndex = 0.obs;
 
@@ -43,6 +46,10 @@ class ListingDetailViewModel extends GetxController {
   /// el view model no toca widgets, asi se puede probar sin Flutter.
   final message = RxnString();
   final error = RxnString();
+
+  /// Se lee de la fuente compartida, no de una copia: asi la estrella de esta
+  /// pantalla y la lista de «Lo mio -> Siguiendo» no pueden discrepar.
+  bool get isFollowing => follows.isFollowing(listingId);
 
   bool get isOwner =>
       session.isLoggedIn && listing.value?.sellerId == session.requireUser.userId;
@@ -58,21 +65,16 @@ class ListingDetailViewModel extends GetxController {
     try {
       listing.value = await listings.byId(listingId);
       questions.assignAll(await qa.forListing(listingId));
-      final user = session.user.value;
-      following.value = user != null &&
-          (await listings.followedIds(user.userId)).contains(listingId);
     } finally {
       loading.value = false;
     }
   }
 
   Future<void> toggleFollow() async {
-    if (!await session.ensureLoggedIn()) return;
-    following.value = await listings.toggleFollow(
-      listingId: listingId,
-      userId: session.requireUser.userId,
-    );
-    message.value = following.value
+    final following = await follows.toggle(listingId);
+    // `null` es que no llego a haber sesion: no hay nada que contar.
+    if (following == null) return;
+    message.value = following
         ? 'Sigues esta publicacion: te avisaremos de preguntas, respuestas y cambios de estado.'
         : 'Dejaste de seguir esta publicacion.';
   }
@@ -149,6 +151,39 @@ class ListingDetailViewModel extends GetxController {
   }
 
   /// Cambia el estado y avisa a quienes siguen la publicacion (requisito 6).
+  /// A quien se le pudo haber vendido: quienes abrieron chat sobre ella.
+  Future<List<ChatThread>> buyerCandidates() async {
+    final threads = await chats.threadsOfListing(listingId);
+    final sellerId = listing.value?.sellerId;
+    return threads.where((t) => t.buyerId != sellerId).toList();
+  }
+
+  /// Cierra la venta con comprador. La misma regla esta en
+  /// `MyListingsViewModel.markSold`: si cambia una, cambia la otra.
+  Future<void> markSold({
+    required String buyerId,
+    required String buyerName,
+  }) async {
+    final current = listing.value;
+    if (current == null) return;
+    await _guard(() async {
+      final updated = await listings.markSold(
+        listingId: current.id,
+        buyerId: buyerId,
+        buyerName: buyerName,
+      );
+      listing.value = updated;
+      await _notify(
+        listing: updated,
+        kind: NotificationKind.statusChange,
+        body: 'La publicacion ahora esta vendida.',
+        exclude: {updated.sellerId},
+        includeSeller: false,
+      );
+      message.value = 'Venta registrada con $buyerName.';
+    });
+  }
+
   Future<void> changeStatus(ListingStatus status) async {
     final current = listing.value;
     if (current == null) return;

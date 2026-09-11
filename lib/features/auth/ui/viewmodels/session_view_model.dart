@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:get/get.dart';
 
 import 'package:f_roble_market/features/auth/domain/auth_failure.dart';
@@ -20,6 +22,30 @@ class SessionViewModel extends GetxController {
   final user = Rxn<AppUser>();
   final busy = false.obs;
   final error = RxnString();
+
+  /// Lo que hay que decirle a quien se quedo sin sesion sin pedirlo.
+  final expired = RxnString();
+
+  StreamSubscription<void>? _expiry;
+
+  @override
+  void onInit() {
+    super.onInit();
+    // Caducar y cerrar sesion dejan los dos sin sesion, pero solo uno merece
+    // una explicacion: el paquete no emite aqui en `logout()`.
+    _expiry = _auth.sessionExpired.listen((_) {
+      if (user.value == null) return;
+      user.value = null;
+      expired.value = 'Tu sesion caduco. Vuelve a entrar.';
+      if (Get.currentRoute != AppRoutes.login) Get.toNamed(AppRoutes.login);
+    });
+  }
+
+  @override
+  void onClose() {
+    _expiry?.cancel();
+    super.onClose();
+  }
 
   bool get isLoggedIn => user.value != null;
   AppUser get requireUser => user.value!;

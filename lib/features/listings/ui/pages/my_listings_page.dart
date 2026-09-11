@@ -5,6 +5,8 @@ import 'package:f_roble_market/core/widgets/empty_state.dart';
 import 'package:f_roble_market/features/auth/ui/viewmodels/session_view_model.dart';
 import 'package:f_roble_market/features/listings/domain/models/listing_status.dart';
 import 'package:f_roble_market/features/listings/ui/viewmodels/my_listings_view_model.dart';
+import 'package:f_roble_market/features/listings/domain/models/car_listing.dart';
+import 'package:f_roble_market/features/listings/ui/widgets/buyer_picker_sheet.dart';
 import 'package:f_roble_market/features/listings/ui/widgets/listing_card.dart';
 import 'package:f_roble_market/routes/app_routes.dart';
 
@@ -85,12 +87,35 @@ class MyListingsPage extends GetView<MyListingsViewModel> {
                   label: Text(status.label),
                   visualDensity: VisualDensity.compact,
                   selected: listing.status == status,
-                  onSelected: (_) => controller.changeStatus(listing, status),
+                  onSelected: (_) => status == ListingStatus.sold
+                      ? _sell(context, listing)
+                      : controller.changeStatus(listing, status),
                 ),
             ],
           ),
         );
       },
+    );
+  }
+
+  /// Cerrar una venta pregunta primero a quien: es lo que la deja en el
+  /// historial de las dos partes y lo que les permite calificarse.
+  Future<void> _sell(BuildContext context, CarListing listing) async {
+    final candidates = await controller.buyerCandidates(listing);
+    if (!context.mounted) return;
+    final choice = await showModalBottomSheet<SoldChoice>(
+      context: context,
+      builder: (_) => BuyerPickerSheet(candidates: candidates),
+    );
+    if (choice == null) return;
+    if (!choice.isRegistered) {
+      await controller.changeStatus(listing, ListingStatus.sold);
+      return;
+    }
+    await controller.markSold(
+      listing,
+      buyerId: choice.buyerId!,
+      buyerName: choice.buyerName!,
     );
   }
 

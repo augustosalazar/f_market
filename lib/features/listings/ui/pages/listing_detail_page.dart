@@ -8,7 +8,10 @@ import 'package:f_roble_market/core/widgets/status_chip.dart';
 import 'package:f_roble_market/features/listings/domain/models/car_listing.dart';
 import 'package:f_roble_market/features/listings/domain/models/listing_status.dart';
 import 'package:f_roble_market/features/listings/ui/viewmodels/listing_detail_view_model.dart';
+import 'package:f_roble_market/features/listings/ui/widgets/buyer_picker_sheet.dart';
+import 'package:f_roble_market/features/profiles/ui/pages/profile_args.dart';
 import 'package:f_roble_market/features/qa/ui/widgets/question_list.dart';
+import 'package:f_roble_market/routes/app_routes.dart';
 
 /// La ficha completa de una publicacion, con sus preguntas publicas.
 class ListingDetailPage extends StatefulWidget {
@@ -49,12 +52,12 @@ class _ListingDetailPageState extends State<ListingDetailPage>
               pinned: true,
               actions: [
                 IconButton(
-                  tooltip: controller.following.value
+                  tooltip: controller.isFollowing
                       ? 'Dejar de seguir'
                       : 'Seguir y recibir avisos',
                   onPressed: controller.toggleFollow,
                   icon: Icon(
-                    controller.following.value ? Icons.star : Icons.star_border,
+                    controller.isFollowing ? Icons.star : Icons.star_border,
                   ),
                 ),
               ],
@@ -99,7 +102,28 @@ class _ListingDetailPageState extends State<ListingDetailPage>
                     subtitle: Text(
                       'Publicado ${Formatters.relative(listing.createdAt)}',
                     ),
+                    // Antes de escribirle conviene poder mirar a quien le
+                    // estas comprando: su historial y lo que opinan de el.
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Get.toNamed(
+                      AppRoutes.userProfile,
+                      arguments: ProfileArgs(
+                        userId: listing.sellerId,
+                        name: listing.sellerName,
+                      ),
+                    ),
                   ),
+                  if (listing.buyerName != null)
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.handshake_outlined),
+                      ),
+                      title: Text('Vendido a ${listing.buyerName}'),
+                      subtitle: listing.soldAt == null
+                          ? null
+                          : Text(Formatters.date(listing.soldAt!)),
+                    ),
                   if (controller.isOwner) ...[
                     const Divider(height: 32),
                     Text('Estado de la publicacion', style: text.titleMedium),
@@ -111,7 +135,9 @@ class _ListingDetailPageState extends State<ListingDetailPage>
                           ChoiceChip(
                             label: Text(status.label),
                             selected: listing.status == status,
-                            onSelected: (_) => controller.changeStatus(status),
+                            onSelected: (_) => status == ListingStatus.sold
+                                ? _sell(context)
+                                : controller.changeStatus(status),
                           ),
                       ],
                     ),
@@ -144,6 +170,25 @@ class _ListingDetailPageState extends State<ListingDetailPage>
           ),
         );
       }),
+    );
+  }
+
+  /// Igual que en «Lo mio»: cerrar la venta pregunta a quien se le vendio.
+  Future<void> _sell(BuildContext context) async {
+    final candidates = await controller.buyerCandidates();
+    if (!context.mounted) return;
+    final choice = await showModalBottomSheet<SoldChoice>(
+      context: context,
+      builder: (_) => BuyerPickerSheet(candidates: candidates),
+    );
+    if (choice == null) return;
+    if (!choice.isRegistered) {
+      await controller.changeStatus(ListingStatus.sold);
+      return;
+    }
+    await controller.markSold(
+      buyerId: choice.buyerId!,
+      buyerName: choice.buyerName!,
     );
   }
 }

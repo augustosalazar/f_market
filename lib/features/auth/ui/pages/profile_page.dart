@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 
 import 'package:f_roble_market/core/widgets/empty_state.dart';
 import 'package:f_roble_market/features/auth/ui/viewmodels/session_view_model.dart';
+import 'package:f_roble_market/features/profiles/ui/pages/profile_args.dart';
 import 'package:f_roble_market/routes/app_routes.dart';
 
 class ProfilePage extends GetView<SessionViewModel> {
@@ -50,7 +51,21 @@ class ProfilePage extends GetView<SessionViewModel> {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+            // El mismo perfil que ve cualquiera: historial y calificaciones.
+            // Verse como te ven es lo que hace util tener reputacion.
+            FilledButton.tonalIcon(
+              onPressed: () => Get.toNamed(
+                AppRoutes.userProfile,
+                arguments: ProfileArgs(userId: user.userId, name: user.name),
+              ),
+              icon: const Icon(Icons.badge_outlined),
+              label: const Text('Mi perfil publico y calificaciones'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+            ),
+            const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: controller.logout,
               icon: const Icon(Icons.logout),
