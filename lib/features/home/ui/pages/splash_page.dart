@@ -35,7 +35,7 @@ class _SplashPageState extends State<SplashPage> {
           children: [
             Icon(Icons.directions_car, size: 64),
             SizedBox(height: 16),
-            Text('Roble Market'),
+            Text('Mi carro'),
             SizedBox(height: 24),
             CircularProgressIndicator(),
           ],

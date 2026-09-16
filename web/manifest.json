@@ -1,11 +1,11 @@
 {
-    "name": "f_roble_market",
-    "short_name": "f_roble_market",
+    "name": "Mi carro",
+    "short_name": "Mi carro",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0D1B2A",
+    "theme_color": "#0D1B2A",
+    "description": "Compra y vende carros.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
