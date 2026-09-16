@@ -45,14 +45,28 @@ class RobleClient {
   /// de ella: `chat_message/<threadId>/<claveDelServidor>`.
   static const messages = 'chat_message';
 
+  /// Si quien mira es un invitado, y no una cuenta.
+  ///
+  /// Sale del token que ya esta en memoria, sin ir al servidor.
+  bool get isGuest => db.isAnonymous;
+
+  /// Quien no puede leer la tabla entera: sin sesion, o con sesion de
+  /// invitado.
+  ///
+  /// **Un invitado tiene sesion iniciada pero el rol `anonymous`, que solo lee
+  /// lo suyo.** Mirar solo `isLoggedIn` mandaria su catalogo por la lectura
+  /// normal y le devolveria sus propias filas —o sea, ninguna— sin ningun
+  /// error: la pantalla sale vacia y no hay nada que depurar.
+  bool get readsPublicly => !db.isLoggedIn || db.isAnonymous;
+
   /// El catalogo se lee sin sesion (requisito 3), pero `publicRead` solo
-  /// funciona si la tabla esta marcada como publica en la consola. Con sesion
-  /// se usa la lectura normal, que no depende de esa marca.
+  /// funciona si la tabla esta marcada como publica en la consola. Con una
+  /// cuenta de verdad se usa la lectura normal, que no depende de esa marca.
   Future<List<Map<String, dynamic>>> readPublicOrPrivate(
     String table, {
     Map<String, dynamic>? filters,
   }) async {
-    if (db.isLoggedIn) return db.read(table, filters: filters);
+    if (!readsPublicly) return db.read(table, filters: filters);
     final rows = await db.publicRead(table);
     if (filters == null || filters.isEmpty) return rows;
     return rows

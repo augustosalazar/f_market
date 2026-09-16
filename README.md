@@ -179,6 +179,63 @@ modelos cargados con `adm-insert` y el token de proyecto. Que sea cerrado es lo
 que mantiene util el filtro — escribiendo la marca a mano, «Chevrolet»,
 «chevrolet» y «Chevrolett» son tres marcas distintas.
 
+### Entrar sin cuenta: seguir carros como invitado
+
+Marcar la estrella y **preguntar** no exigen cuenta. Si no hay sesion, la app abre una de
+invitado (`signInAnonymously`): un usuario de verdad, con `userId`, sin correo
+ni clave. Lo que sigue queda a su nombre, y al registrarse lo conserva porque
+`upgradeAccount` **muta el usuario que ya existe** en vez de crear otro.
+
+Publicar, chatear y calificar siguen exigiendo cuenta. Por eso la sesion tiene
+dos puertas, y confundirlas es el error facil:
+
+| | Que exige | Quien la usa |
+|---|---|---|
+| `ensureWritableSession()` | sesion, aunque sea de invitado | seguir una publicacion, preguntar |
+| `ensureLoggedIn()` | una **cuenta** (`hasAccount`) | publicar, chatear, calificar |
+
+Lo que hubo que tocar en el proyecto de Roble, y no es opcional:
+
+- **Encender el acceso anonimo** (`anonymousAuthEnabled`). El servidor lo niega
+  si ninguna tabla acota por dueno: un invitado sin eso escribe filas que
+  cualquier otro invitado puede borrar. `listing` y `listing_follow` ya la
+  acotan, asi que la condicion se cumplia.
+- **Conceder `listing_follow:delete` con alcance `own` al rol `anonymous`.** De
+  fabrica ese rol trae solo `create` y `read` sobre lo suyo, asi que un
+  invitado podria seguir pero **no dejar de seguir**, y el fallo aparece en el
+  segundo toque de la estrella.
+
+### El nombre con el que firma un invitado
+
+Una pregunta **copia el nombre de quien la escribe dentro de la fila**, al
+escribirla. Un invitado se llama «Invitado» en el servidor, y registrarse
+despues no reescribe lo que ya publico: el vendedor se quedaria sin saber a
+quien contesta, para siempre.
+
+Por eso, antes de su **primera** pregunta —no al entrar, que es cuando la gente
+se va— se le pide un nombre para mostrar. Vive en `SessionViewModel.guestName`,
+firma todo lo que escriba (`session.displayName`) y precarga el formulario de
+«guarda tu cuenta», para que la cuenta no nazca con un nombre distinto al de
+sus preguntas.
+
+Vive **solo en la sesion**, a proposito: `auth` no deja renombrarse —solo
+expone `me/extra`, que el paquete todavia no publica— y la app no guarda nada
+en el dispositivo. Al reabrir la app se vuelve a pedir, que es barato: lo ya
+publicado quedo firmado.
+
+El chat privado sigue exigiendo cuenta, y no por capricho: mandar un mensaje
+actualiza la cabecera del hilo, y `chat_thread` no esta acotada por dueno, asi
+que ese permiso dejaria a un invitado tocar cualquier chat.
+
+Y una trampa que costaria cara: **un invitado tiene `isLoggedIn == true` pero
+solo lee lo suyo**. `RobleClient.readsPublicly` es lo que evita que el catalogo
+salga vacio sin ningun error — con el rol `anonymous`, la lectura normal
+devuelve las filas del invitado, que son ninguna.
+
+Al invitado no se le ofrece cerrar sesion: no tiene con que volver a entrar, y
+seria borrarle la cuenta sin decirlo. Tampoco se muestra su correo, que es una
+direccion inventada `anon_…@anonymous.invalid`.
+
 ### Quien puede calificar a quien
 
 Solo las dos partes de una **venta registrada**, y una vez cada una. Por eso la

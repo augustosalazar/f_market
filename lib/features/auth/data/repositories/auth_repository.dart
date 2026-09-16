@@ -51,6 +51,29 @@ class AuthRepository implements IAuthRepository {
   }
 
   @override
+  Future<AppUser> signInAnonymously() => _guard(
+    () async => _toUser(await _source.signInAnonymously()),
+    // El paquete distingue las dos razones por las que un proyecto puede no
+    // admitir invitados; para quien mira la pantalla son la misma cosa.
+    siNoHayInvitados: true,
+  );
+
+  @override
+  Future<AppUser> upgradeAccount({
+    required String email,
+    required String password,
+    String? name,
+  }) => _guard(
+    () async => _toUser(
+      await _source.upgradeAccount(
+        email: email,
+        password: password,
+        name: name,
+      ),
+    ),
+  );
+
+  @override
   Future<void> logout() async {
     _source.currentUserId = null;
     await _source.logout();
@@ -58,6 +81,9 @@ class AuthRepository implements IAuthRepository {
 
   AppUser _toUser(Map<String, dynamic> profile) {
     final user = AppUser(
+      // El token es la fuente buena: tras ascender, el perfil del servidor ya
+      // viene sin la marca, y el token se renueva en la misma llamada.
+      isAnonymous: profile['isAnonymous'] == true || _source.isAnonymous,
       // `userId` es el del usuario, el que referencian las tablas; `id` es el
       // de la fila del perfil y no sirve para eso.
       userId: profile['userId'] as String,
@@ -70,10 +96,53 @@ class AuthRepository implements IAuthRepository {
 
   /// Aqui mueren las excepciones del paquete: la pantalla ve un `AuthFailure`
   /// con algo que se le puede enseñar a una persona.
-  Future<AppUser> _guard(Future<AppUser> Function() action) async {
+  Future<AppUser> _guard(
+    Future<AppUser> Function() action, {
+    bool siNoHayInvitados = false,
+  }) async {
     try {
       return await action();
+    } on RobleAnonUpgradeEmailTakenException {
+      throw AuthFailure(
+        'Ya hay una cuenta con ese correo. Si es tuya, entra con ella: lo que '
+        'guardaste como invitado se queda en esta sesion.',
+        code: AuthFailure.emailTaken,
+      );
+    } on RobleAnonymousAuthException catch (e) {
+      // `ANON_AUTH_DISABLED` y `ANON_REQUIRES_ROW_OWNERSHIP` son las dos
+      // mitades de la misma configuracion, y ninguna es culpa de quien entra.
+      // Cual de las dos falta va detras, que es lo unico accionable.
+      throw AuthFailure(
+        'Entrar sin cuenta no esta disponible ahora mismo. (${e.message})',
+        code: AuthFailure.guestsDisabled,
+      );
+    } on RobleApiHttpException catch (e) {
+      // 429: el servidor limita las sesiones de invitado por IP, porque cada
+      // una deja una fila permanente. No es que no se pueda: es que ahora no.
+      if (siNoHayInvitados && e.statusCode == 429) {
+        throw AuthFailure(
+          'Demasiados invitados desde esta conexion. Espera un momento, o '
+          'entra con tu cuenta.',
+          code: AuthFailure.tooManyGuests,
+        );
+      }
+      if (siNoHayInvitados) {
+        // El mensaje del servidor viaja detras: sin el, un 404 —servidor sin
+        // acceso anonimo— y un 429 —demasiadas sesiones— se leen igual, y el
+        // motivo real no aparece en ningun sitio.
+        throw AuthFailure(
+          'Entrar sin cuenta no esta disponible ahora mismo. (${e.message})',
+          code: AuthFailure.guestsDisabled,
+        );
+      }
+      throw AuthFailure(e.message);
     } on RobleApiException catch (e) {
+      if (siNoHayInvitados) {
+        throw AuthFailure(
+          'Entrar sin cuenta no esta disponible ahora mismo. (${e.message})',
+          code: AuthFailure.guestsDisabled,
+        );
+      }
       throw AuthFailure(e.message);
     }
   }

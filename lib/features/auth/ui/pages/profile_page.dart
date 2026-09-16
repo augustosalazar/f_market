@@ -2,12 +2,65 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import 'package:f_roble_market/core/widgets/empty_state.dart';
+import 'package:f_roble_market/features/auth/domain/auth_failure.dart';
 import 'package:f_roble_market/features/auth/ui/viewmodels/session_view_model.dart';
+import 'package:f_roble_market/features/auth/ui/widgets/save_account_sheet.dart';
+import 'package:f_roble_market/features/listings/ui/viewmodels/follows_view_model.dart';
 import 'package:f_roble_market/features/profiles/ui/pages/profile_args.dart';
 import 'package:f_roble_market/routes/app_routes.dart';
 
 class ProfilePage extends GetView<SessionViewModel> {
   const ProfilePage({super.key});
+
+  /// Ofrece convertir la sesion de invitado en una cuenta.
+  ///
+  /// Si el correo ya tiene cuenta, Roble no fusiona nada: lo unico honesto es
+  /// decirlo y ofrecer entrar, avisando de que lo del invitado se queda atras.
+  Future<void> _saveAccount(BuildContext context) async {
+    final seguidas = Get.isRegistered<FollowsViewModel>()
+        ? Get.find<FollowsViewModel>().ids.length
+        : 0;
+    final datos = await showModalBottomSheet<SaveAccountData>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SaveAccountSheet(
+        followedCount: seguidas,
+        initialName: controller.guestName.value,
+      ),
+    );
+    if (datos == null) return;
+
+    final listo = await controller.upgrade(
+      name: datos.name,
+      email: datos.email,
+      password: datos.password,
+      confirmation: datos.confirmation,
+    );
+    if (listo || controller.lastErrorCode != AuthFailure.emailTaken) return;
+    if (!context.mounted) return;
+
+    final entrar = await showDialog<bool>(
+      context: context,
+      builder: (dialogo) => AlertDialog(
+        title: const Text('Ese correo ya tiene cuenta'),
+        content: const Text(
+          'Puedes entrar con ella, pero lo que guardaste como invitado se '
+          'queda en esta sesion: no se pasa a la otra cuenta.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogo).pop(false),
+            child: const Text('Usar otro correo'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogo).pop(true),
+            child: const Text('Entrar con esa cuenta'),
+          ),
+        ],
+      ),
+    );
+    if (entrar ?? false) await Get.toNamed(AppRoutes.login);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -46,12 +99,50 @@ class ProfilePage extends GetView<SessionViewModel> {
               ),
             ),
             Center(
+              // La direccion de un invitado es inventada y no existe: en su
+              // lugar va lo unico cierto, que esta a medio camino.
               child: Text(
-                user.email,
+                controller.isGuest ? 'Estas como invitado' : user.email,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
             const SizedBox(height: 24),
+            if (controller.isGuest) ...[
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Guarda tu cuenta',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Sin correo ni contrasena, lo que sigues vive solo en '
+                        'este telefono. Con cuenta tambien puedes publicar, '
+                        'preguntar y chatear.',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      const SizedBox(height: 12),
+                      FilledButton.icon(
+                        onPressed: controller.busy.value
+                            ? null
+                            : () => _saveAccount(context),
+                        icon: const Icon(Icons.save_outlined),
+                        label: const Text('Guardar mi cuenta'),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             // El mismo perfil que ve cualquiera: historial y calificaciones.
             // Verse como te ven es lo que hace util tener reputacion.
             FilledButton.tonalIcon(
@@ -66,14 +157,17 @@ class ProfilePage extends GetView<SessionViewModel> {
               ),
             ),
             const SizedBox(height: 12),
-            OutlinedButton.icon(
-              onPressed: controller.logout,
-              icon: const Icon(Icons.logout),
-              label: const Text('Cerrar sesion'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
+            // A un invitado no se le ofrece cerrar sesion: no tiene con que
+            // volver a entrar, asi que seria borrar su cuenta sin decirlo.
+            if (!controller.isGuest)
+              OutlinedButton.icon(
+                onPressed: controller.logout,
+                icon: const Icon(Icons.logout),
+                label: const Text('Cerrar sesion'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                ),
               ),
-            ),
           ],
         );
       }),

@@ -61,6 +61,53 @@ class InMemoryAuthDataSource implements IAuthDataSource {
   }
 
   @override
+  Future<Map<String, dynamic>> signInAnonymously() async {
+    await Future.delayed(_delay);
+    final id = _data.nextId('u');
+    final guest = <String, dynamic>{
+      'userId': id,
+      'name': 'Invitado',
+      // La misma direccion inventada que pone el servidor: no existe y no se
+      // muestra.
+      'email': 'anon_$id@anonymous.invalid',
+      'isAnonymous': true,
+    };
+    _data.users.add(guest);
+    _data.session = guest;
+    return guest;
+  }
+
+  @override
+  Future<Map<String, dynamic>> upgradeAccount({
+    required String email,
+    required String password,
+    String? name,
+  }) async {
+    await Future.delayed(_delay);
+    final guest = _data.session;
+    if (guest == null || guest['isAnonymous'] != true) {
+      throw StateError('Esta cuenta ya no es un invitado.');
+    }
+    final normalized = email.toLowerCase();
+    if (_data.users.any(
+      (u) => (u['email'] as String).toLowerCase() == normalized &&
+          u['userId'] != guest['userId'],
+    )) {
+      throw StateError('Ya existe una cuenta con ese correo.');
+    }
+    // **Muta la fila que ya hay**, como el servidor: el `userId` no cambia, y
+    // por eso lo que el invitado escribio sigue siendo suyo.
+    guest['email'] = normalized;
+    guest['name'] = (name?.trim().isNotEmpty ?? false) ? name!.trim() : guest['name'];
+    guest['isAnonymous'] = false;
+    _data.passwords[normalized] = password;
+    return guest;
+  }
+
+  @override
+  bool get isAnonymous => _data.session?['isAnonymous'] == true;
+
+  @override
   Future<void> logout() async {
     await Future.delayed(const Duration(milliseconds: 150));
     _data.session = null;

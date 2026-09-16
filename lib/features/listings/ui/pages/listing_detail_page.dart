@@ -8,6 +8,7 @@ import 'package:f_roble_market/core/widgets/status_chip.dart';
 import 'package:f_roble_market/features/listings/domain/models/car_listing.dart';
 import 'package:f_roble_market/features/listings/domain/models/listing_status.dart';
 import 'package:f_roble_market/features/listings/ui/viewmodels/listing_detail_view_model.dart';
+import 'package:f_roble_market/features/auth/ui/widgets/display_name_sheet.dart';
 import 'package:f_roble_market/features/listings/ui/widgets/buyer_picker_sheet.dart';
 import 'package:f_roble_market/features/profiles/ui/pages/profile_args.dart';
 import 'package:f_roble_market/features/qa/ui/widgets/question_list.dart';
@@ -146,7 +147,7 @@ class _ListingDetailPageState extends State<ListingDetailPage>
                   QuestionList(
                     questions: controller.questions,
                     isOwner: controller.isOwner,
-                    onAsk: controller.ask,
+                    onAsk: (texto) => _preguntar(context, texto),
                     onAnswer: controller.answer,
                   ),
                 ],
@@ -171,6 +172,26 @@ class _ListingDetailPageState extends State<ListingDetailPage>
         );
       }),
     );
+  }
+
+  /// Preguntar no exige cuenta, pero si un nombre con el que firmar.
+  ///
+  /// El orden importa: primero la sesion —si no hay, se abre una de invitado—,
+  /// y solo despues el nombre, porque hasta tenerla no se sabe si hace falta.
+  Future<void> _preguntar(BuildContext context, String texto) async {
+    final session = controller.session;
+    if (!await session.ensureWritableSession()) return;
+    if (session.needsDisplayName) {
+      if (!context.mounted) return;
+      final nombre = await showModalBottomSheet<String>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => const DisplayNameSheet(),
+      );
+      // Sin nombre no se publica: firmar «Invitado» es lo que veniamos a evitar.
+      if (nombre == null || !session.setGuestName(nombre)) return;
+    }
+    await controller.ask(texto);
   }
 
   /// Igual que en «Lo mio»: cerrar la venta pregunta a quien se le vendio.

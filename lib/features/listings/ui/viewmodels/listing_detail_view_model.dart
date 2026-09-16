@@ -81,8 +81,11 @@ class ListingDetailViewModel extends GetxController {
 
   /// Pregunta publica. Avisa al vendedor (requisito 7) y a los seguidores de
   /// la publicacion (requisito 6), nunca a quien pregunta.
+  /// Preguntar **no exige cuenta**: es la pregunta de quien esta mirando, y
+  /// mandarlo al registro es donde se pierde. Basta una sesion de invitado,
+  /// que es lo que hace que la pregunta tenga a quien avisar de la respuesta.
   Future<void> ask(String text) async {
-    if (!await session.ensureLoggedIn()) return;
+    if (!await session.ensureWritableSession()) return;
     final current = listing.value;
     final body = text.trim();
     if (current == null) return;
@@ -95,18 +98,20 @@ class ListingDetailViewModel extends GetxController {
       error.value = 'No puedes preguntar en tu propia publicacion.';
       return;
     }
+    // El nombre que se copia en la fila es el elegido, no «Invitado».
+    final firma = session.displayName;
 
     await _guard(() async {
       await qa.ask(
         listingId: current.id,
         askerId: asker.userId,
-        askerName: asker.name,
+        askerName: firma,
         text: body,
       );
       await _notify(
         listing: current,
         kind: NotificationKind.question,
-        body: '${asker.name} pregunto: $body',
+        body: '$firma pregunto: $body',
         exclude: {asker.userId},
         includeSeller: true,
       );

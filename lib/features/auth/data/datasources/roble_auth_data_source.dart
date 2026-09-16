@@ -33,6 +33,32 @@ class RobleAuthDataSource implements IAuthDataSource {
   }) => _client.db.register(email: email, password: password, name: name);
 
   @override
+  Future<Map<String, dynamic>> signInAnonymously() async {
+    await _client.db.signInAnonymously();
+    // El perfil no viene con los tokens: se pide aparte, igual que en `login`.
+    return _client.db.currentUser();
+  }
+
+  @override
+  Future<Map<String, dynamic>> upgradeAccount({
+    required String email,
+    required String password,
+    String? name,
+  }) async {
+    // `verify: false` a proposito: el proyecto no tiene correo saliente, y
+    // dejar la cuenta esperando un codigo que no llega la deja inservible.
+    await _client.db.upgradeAccount(
+      email: email,
+      password: password,
+      name: name,
+    );
+    return _client.db.currentUser();
+  }
+
+  @override
+  bool get isAnonymous => _client.db.isAnonymous;
+
+  @override
   Future<void> logout() => _client.db.logout();
 
   /// Avisa cuando la sesion se cae sola. No emite en `logout()`.

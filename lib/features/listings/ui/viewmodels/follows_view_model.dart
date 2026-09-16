@@ -41,11 +41,14 @@ class FollowsViewModel extends GetxController {
     ids.assignAll(await _listings.followedIds(user.userId));
   }
 
-  /// Seguir es lo que suscribe al comprador a los avisos, asi que exige
-  /// sesion. Devuelve si quedo siguiendo, o `null` si no llego a haberla:
-  /// quien llama distingue asi «no sigue» de «no entro».
+  /// Seguir es lo que suscribe al comprador a los avisos, asi que necesita
+  /// alguien a quien avisar —pero no una cuenta: una sesion de invitado vale,
+  /// y es justo el gesto de quien esta mirando y aun no se compromete.
+  ///
+  /// Devuelve si quedo siguiendo, o `null` si no llego a haber sesion: quien
+  /// llama distingue asi «no sigue» de «no entro».
   Future<bool?> toggle(String listingId) async {
-    if (!await _session.ensureLoggedIn()) return null;
+    if (!await _session.ensureWritableSession()) return null;
     final following = await _listings.toggleFollow(
       listingId: listingId,
       userId: _session.requireUser.userId,

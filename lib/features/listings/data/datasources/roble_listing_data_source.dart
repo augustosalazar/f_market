@@ -24,8 +24,9 @@ class RobleListingDataSource implements IListingDataSource {
 
   @override
   Future<Map<String, dynamic>?> listingById(String id) async {
-    if (_client.db.isLoggedIn) return _client.db.getById(listings, id);
-    // Sin sesion no hay `getById`: el detalle tambien tiene que verse.
+    if (!_client.readsPublicly) return _client.db.getById(listings, id);
+    // Sin sesion —o como invitado, que solo ve lo suyo— no hay `getById`: el
+    // detalle tambien tiene que verse.
     final rows = await _client.db.publicRead(listings);
     for (final row in rows) {
       if (row['_id'] == id) return row;

@@ -596,10 +596,10 @@ packages:
     dependency: "direct main"
     description:
       name: roble
-      sha256: f2a870270cc8291e6a7f7b8b4d87b6e85b9a0ea3194c2135e68c6f44ea5a7b99
+      sha256: c98ceb1c6fca4038a335cff800d740a9f45cdcc990dc4ca0a3da6bb20095d6da
       url: "https://pub.dev"
     source: hosted
-    version: "1.9.0"
+    version: "1.12.0"
   sky_engine:
     dependency: transitive
     description: flutter

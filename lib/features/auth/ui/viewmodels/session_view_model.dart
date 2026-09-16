@@ -50,6 +50,44 @@ class SessionViewModel extends GetxController {
   bool get isLoggedIn => user.value != null;
   AppUser get requireUser => user.value!;
 
+  /// Entro sin cuenta. Tiene sesion y escribe lo suyo, pero no tiene correo
+  /// con el que volver: por eso la pantalla le ofrece «guarda tu cuenta» en
+  /// vez de «cerrar sesion».
+  bool get isGuest => user.value?.isAnonymous ?? false;
+
+  /// Una cuenta de verdad, no un invitado. Es lo que exigen publicar, chatear
+  /// y calificar.
+  bool get hasAccount => isLoggedIn && !isGuest;
+
+  /// El nombre que un invitado eligio para que lo vean los demas.
+  ///
+  /// Vive solo en la sesion, a proposito: el servidor no deja renombrarse
+  /// —`auth` solo expone `me/extra`, que el paquete todavia no publica— y la
+  /// app no guarda nada en el dispositivo. Al cerrar la app se vuelve a pedir,
+  /// que es barato: lo que ya escribio quedo firmado con el nombre que dio.
+  final guestName = RxnString();
+
+  /// Con que nombre se firma lo que esta persona escribe.
+  ///
+  /// Un invitado se llama «Invitado» en el servidor, y ese nombre se **copia**
+  /// dentro de cada pregunta al escribirla: firmar asi dejaria al vendedor sin
+  /// saber a quien contesta, y registrarse despues no lo arregla hacia atras.
+  String get displayName => guestName.value ?? user.value?.name ?? '';
+
+  /// Si hay que preguntarle como quiere que lo llamen antes de que escriba.
+  bool get needsDisplayName => isGuest && guestName.value == null;
+
+  /// Devuelve si el nombre vale. Corto o vacio no sirve de firma.
+  bool setGuestName(String value) {
+    final limpio = value.trim();
+    if (limpio.length < 3) {
+      error.value = 'Escribe un nombre de al menos 3 caracteres.';
+      return false;
+    }
+    guestName.value = limpio;
+    return true;
+  }
+
   Future<void> restore() async {
     user.value = await _auth.restoreSession();
   }
@@ -96,17 +134,77 @@ class SessionViewModel extends GetxController {
   Future<void> logout() async {
     await _auth.logout();
     user.value = null;
+    guestName.value = null;
   }
 
-  /// Garantiza sesion antes de una accion que la exige. Si no hay, manda al
-  /// login y devuelve si el usuario termino entrando.
+  /// Garantiza una **cuenta** antes de una accion que la exige —publicar,
+  /// chatear, calificar—. Si no hay, manda al login.
+  ///
+  /// Un invitado tambien pasa por aqui: tiene sesion, pero no la cuenta que
+  /// estas acciones necesitan.
   Future<bool> ensureLoggedIn() async {
-    if (isLoggedIn) return true;
+    if (hasAccount) return true;
     await Get.toNamed(AppRoutes.login);
-    return isLoggedIn;
+    return hasAccount;
   }
+
+  /// Garantiza **algo** con lo que escribir, para lo que no exige cuenta.
+  ///
+  /// Es lo que convierte «entra para seguir este carro» en seguirlo y ya. Si
+  /// el proyecto no admite invitados, cae al login en vez de dejar el gesto
+  /// sin efecto.
+  Future<bool> ensureWritableSession() async {
+    if (isLoggedIn) return true;
+    final entro = await _run(_auth.signInAnonymously);
+    if (entro) return true;
+    // Solo se cae al login cuando el proyecto no admite invitados. Un limite
+    // temporal o un fallo de red se cuentan y ya: mandar al login a quien solo
+    // tenia que esperar convierte un tropiezo en una barrera.
+    if (_lastCode != AuthFailure.guestsDisabled) return false;
+    // Sin invitados no hay nada que explicar: el login es la via normal.
+    error.value = null;
+    return ensureLoggedIn();
+  }
+
+  /// Convierte al invitado en una cuenta conservando todo lo suyo.
+  Future<bool> upgrade({
+    required String name,
+    required String email,
+    required String password,
+    required String confirmation,
+  }) {
+    if (name.trim().length < 3) {
+      return _fail('Tu nombre debe tener al menos 3 caracteres.');
+    }
+    if (!_emailRe.hasMatch(email.trim())) {
+      return _fail('Ese correo no parece valido.');
+    }
+    if (password.length < 6) {
+      return _fail('La contrasena debe tener al menos 6 caracteres.');
+    }
+    if (password != confirmation) {
+      return _fail('Las contrasenas no coinciden.');
+    }
+    return _run(() async {
+      final cuenta = await _auth.upgradeAccount(
+        email: email.trim(),
+        password: password,
+        name: name.trim(),
+      );
+      // Ya es el nombre de la cuenta: mantener el de invitado encima solo
+      // daria dos fuentes para lo mismo.
+      guestName.value = null;
+      return cuenta;
+    });
+  }
+
+  /// El `code` del ultimo fallo, para las pantallas que distinguen cual fue.
+  String? get lastErrorCode => _lastCode;
+
+  String? _lastCode;
 
   Future<bool> _fail(String message) async {
+    _lastCode = null;
     error.value = message;
     return false;
   }
@@ -114,10 +212,12 @@ class SessionViewModel extends GetxController {
   Future<bool> _run(Future<AppUser> Function() action) async {
     busy.value = true;
     error.value = null;
+    _lastCode = null;
     try {
       user.value = await action();
       return true;
     } on AuthFailure catch (e) {
+      _lastCode = e.code;
       error.value = e.message;
       return false;
     } catch (_) {
