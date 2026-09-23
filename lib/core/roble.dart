@@ -1,4 +1,8 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:roble/roble.dart';
+
+import 'package:f_roble_market/core/roble_config.dart';
 
 /// El cliente de Roble, uno solo para toda la app.
 ///
@@ -11,9 +15,65 @@ class RobleClient {
           baseUrl: baseUrl,
           contractId: contractId,
         ),
+        // Solo lo usa la ventana de web: en movil el selector nativo de
+        // Google vuelve solo, sin destino de retorno que registrar. Es el
+        // nombre de un destino de la consola, no una URL.
+        ssoRedirect: RobleConfig.ssoRedirect,
+        googleIosClientId: RobleConfig.googleIosClientId.isEmpty
+            ? null
+            : RobleConfig.googleIosClientId,
       );
 
   RobleClient.withDatabase(this.db);
+
+  /// Enlaza Google con la cuenta que **ya tiene sesion**.
+  ///
+  /// Es lo que asciende a un invitado sin moverle un dato: el servidor une la
+  /// identidad al usuario que ya existe, le quita la marca de invitado y le da
+  /// el rol normal, todo con el mismo `userId`. Entrar con Google a secas no
+  /// sirve para esto: eso resolveria otra identidad y dejaria atras lo suyo.
+  ///
+  /// A diferencia de entrar, esto **siempre pasa por el navegador**, tambien
+  /// en movil: el selector nativo devuelve un `id_token` para iniciar sesion,
+  /// y el enlace no tiene esa puerta.
+  Future<void> linkGoogle({
+    Duration timeout = const Duration(minutes: 5),
+  }) async {
+    final inicio = await db.linkIdentity(
+      provider: 'google',
+      redirect: kIsWeb
+          ? RobleConfig.webLinkRedirect
+          : RobleConfig.mobileSsoRedirect,
+    );
+
+    final retorno = Uri.parse(
+      await FlutterWebAuth2.authenticate(
+        url: inicio['url']!,
+        // En web el plugin lo ignora —alli el retorno lo recoge
+        // `auth.html`—, asi que vale el mismo valor en las dos plataformas.
+        callbackUrlScheme: RobleConfig.mobileCallbackScheme,
+      ).timeout(timeout),
+    );
+
+    final error = retorno.queryParameters['error'];
+    if (error != null) {
+      throw RobleApiAuthException(
+        retorno.queryParameters['error_description'] ?? error,
+      );
+    }
+
+    final codigo = retorno.queryParameters['code'];
+    if (codigo == null || codigo.isEmpty) {
+      throw const RobleApiAuthException(
+        'Google volvio sin codigo: el enlace no se completo.',
+      );
+    }
+
+    // El servidor emite sesion nueva para el mismo usuario, ya sin la marca de
+    // invitado. Sin canjearla, el token en memoria seguiria diciendo que es un
+    // invitado y la pantalla seguiria ofreciendo «guarda tu cuenta».
+    await db.exchangeSocialCode(codigo);
+  }
 
   final RobleApiDataBase db;
 

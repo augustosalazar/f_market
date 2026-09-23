@@ -25,11 +25,26 @@ abstract class IAuthRepository {
     required String password,
   });
 
+  /// Si el proyecto tiene Google encendido.
+  ///
+  /// Responde `false` tambien cuando no se pudo preguntar: la pantalla ofrece
+  /// entonces solo correo y contrasena, que es mejor que un boton que siempre
+  /// va a fallar. No es un error que merezca interrumpir el login.
+  Future<bool> googleEnabled();
+
+  /// Entra con Google. Solo tiene sentido si [availableProviders] lo trae.
   Future<AppUser> signInWithGoogle();
 
   /// Entra como invitado: sin correo ni clave, pero con `userId` propio, asi
   /// que lo que escriba queda a su nombre y se conserva si luego se registra.
   Future<AppUser> signInAnonymously();
+
+  /// Asciende al invitado enlazando su cuenta de Google, conservando todo lo
+  /// suyo: el `userId` no cambia.
+  ///
+  /// Lanza `AuthFailure` con `code` [AuthFailure.emailTaken] si esa cuenta de
+  /// Google ya pertenece a otro usuario: Roble no fusiona dos cuentas.
+  Future<AppUser> upgradeWithGoogle();
 
   /// Asciende al invitado a una cuenta conservando todo lo suyo.
   ///

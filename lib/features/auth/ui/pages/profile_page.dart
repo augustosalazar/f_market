@@ -20,23 +20,39 @@ class ProfilePage extends GetView<SessionViewModel> {
     final seguidas = Get.isRegistered<FollowsViewModel>()
         ? Get.find<FollowsViewModel>().ids.length
         : 0;
-    final datos = await showModalBottomSheet<SaveAccountData>(
+    // Antes de abrir la hoja, porque es ella quien decide si pinta el boton.
+    await controller.loadProviders();
+    if (!context.mounted) return;
+
+    final eleccion = await showModalBottomSheet<SaveAccountChoice>(
       context: context,
       isScrollControlled: true,
       builder: (_) => SaveAccountSheet(
         followedCount: seguidas,
         initialName: controller.guestName.value,
+        googleEnabled: controller.googleEnabled.value,
       ),
     );
-    if (datos == null) return;
+    if (eleccion == null) return;
 
-    final listo = await controller.upgrade(
-      name: datos.name,
-      email: datos.email,
-      password: datos.password,
-      confirmation: datos.confirmation,
-    );
-    if (listo || controller.lastErrorCode != AuthFailure.emailTaken) return;
+    final listo = switch (eleccion) {
+      SaveAccountWithGoogle() => await controller.upgradeWithGoogle(),
+      SaveAccountData(:final name, :final email, :final password,
+              :final confirmation) =>
+        await controller.upgrade(
+          name: name,
+          email: email,
+          password: password,
+          confirmation: confirmation,
+        ),
+    };
+    // Con Google el choque es otro —esa cuenta ya es de alguien— y el mensaje
+    // del repositorio ya lo explica; no hay nada que ofrecer aqui.
+    if (listo ||
+        eleccion is SaveAccountWithGoogle ||
+        controller.lastErrorCode != AuthFailure.emailTaken) {
+      return;
+    }
     if (!context.mounted) return;
 
     final entrar = await showDialog<bool>(

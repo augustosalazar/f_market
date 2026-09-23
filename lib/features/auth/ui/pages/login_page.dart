@@ -6,7 +6,8 @@ import 'package:f_roble_market/core/utils/message_listener.dart';
 import 'package:f_roble_market/features/auth/ui/viewmodels/session_view_model.dart';
 import 'package:f_roble_market/routes/app_routes.dart';
 
-/// Entrar con correo y contrasena o con Google (requisito 2).
+/// Entrar con correo y contrasena, o con Google si el proyecto lo tiene
+/// encendido (requisito 2).
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -26,6 +27,8 @@ class _LoginPageState extends State<LoginPage> with MessageListener<LoginPage> {
   void initState() {
     super.initState();
     controller.error.value = null;
+    // Los botones sociales salen de lo que el servidor diga que hay activo.
+    controller.loadProviders();
     // Quien llega aqui porque se le cayo la sesion merece saberlo.
     listenMessages(message: controller.expired);
   }
@@ -93,17 +96,27 @@ class _LoginPageState extends State<LoginPage> with MessageListener<LoginPage> {
                   : const Text('Entrar'),
             ),
           ),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(
-            onPressed: () async {
-              final ok = await controller.signInWithGoogle();
-              if (ok) Get.back();
-            },
-            icon: const Icon(Icons.g_mobiledata, size: 28),
-            label: const Text('Continuar con Google'),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(48),
-            ),
+          // El boton solo sale si Google esta encendido en la consola de
+          // Roble: uno que siempre falla es peor que no tenerlo.
+          Obx(
+            () => !controller.googleEnabled.value
+                ? const SizedBox.shrink()
+                : Padding(
+                    padding: const EdgeInsets.only(top: 12),
+                    child: OutlinedButton.icon(
+                      onPressed: controller.busy.value
+                          ? null
+                          : () async {
+                              final ok = await controller.signInWithGoogle();
+                              if (ok) Get.back();
+                            },
+                      icon: const Icon(Icons.g_mobiledata, size: 28),
+                      label: const Text('Continuar con Google'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(48),
+                      ),
+                    ),
+                  ),
           ),
           const SizedBox(height: 20),
           Center(
@@ -124,3 +137,4 @@ class _LoginPageState extends State<LoginPage> with MessageListener<LoginPage> {
     );
   }
 }
+
