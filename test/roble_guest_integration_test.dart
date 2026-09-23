@@ -155,6 +155,11 @@ void main() {
         listingId: objetivo.id,
         userId: invitado.userId,
       );
+      // Un invitado no puede ejecutar consultas: va por `public-read`.
+      expect(
+        (await listingsInvitado.followedBy(invitado.userId)).map((l) => l.id),
+        [objetivo.id],
+      );
 
       // --- 4. guarda su cuenta y conserva lo suyo ----------------------
       final cuenta = await invitadoAuth.upgradeAccount(
@@ -168,6 +173,11 @@ void main() {
       expect(cuenta.userId, invitado.userId);
       expect(await listingsInvitado.followedIds(cuenta.userId),
           contains(objetivo.id));
+      // Ya con cuenta, lo seguido llega por la consulta guardada.
+      expect(
+        (await listingsInvitado.followedBy(cuenta.userId)).map((l) => l.id),
+        [objetivo.id],
+      );
 
       // Y ya con cuenta, el catalogo se lee por la via normal.
       expect(invitadoCliente.isGuest, isFalse);

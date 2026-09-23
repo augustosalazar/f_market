@@ -10,7 +10,24 @@ abstract class IListingDataSource {
     Map<String, dynamic>? filters,
   });
 
+  /// Las publicaciones que **pueden** cumplir el filtro.
+  ///
+  /// Devuelve al menos todas las que lo cumplen, y quiza mas: donde la fuente
+  /// no sabe filtrar, devuelve de mas. El repositorio vuelve a filtrar y
+  /// ordena, asi que la regla del filtro vive en un solo sitio.
+  Future<List<Map<String, dynamic>>> searchListings({
+    required String text,
+    String? brand,
+    double? minPrice,
+    double? maxPrice,
+    int? minYear,
+  });
+
   Future<Map<String, dynamic>?> listingById(String id);
+
+  /// Las publicaciones con esos `_id`, en cualquier orden. Las que no existan
+  /// simplemente no vienen.
+  Future<List<Map<String, dynamic>>> listingsByIds(List<String> ids);
 
   Future<Map<String, dynamic>> createListing(Map<String, dynamic> row);
 

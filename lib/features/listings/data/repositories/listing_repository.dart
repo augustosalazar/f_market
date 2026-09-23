@@ -21,11 +21,18 @@ class ListingRepository implements IListingRepository {
 
   @override
   Future<List<CarListing>> search(ListingFilter filter) async {
-    // La API de lectura solo filtra por igualdad, asi que el texto y los
-    // rangos se resuelven aqui. Cuando el catalogo crezca esto se cambia por
-    // una consulta guardada; hoy seria complicarlo antes de tiempo.
-    final rows = await _guard(_source.readListings);
     final query = filter.query.trim().toLowerCase();
+    // Con cuenta, la fuente ya filtra en el servidor; sin ella, devuelve de
+    // mas. Volver a filtrar aqui cuesta poco y deja la regla en un sitio.
+    final rows = await _guard(
+      () => _source.searchListings(
+        text: query,
+        brand: filter.brand,
+        minPrice: filter.minPrice,
+        maxPrice: filter.maxPrice,
+        minYear: filter.minYear,
+      ),
+    );
 
     final result = rows.map(_toListing).where((l) {
       if (query.isNotEmpty &&
@@ -152,8 +159,13 @@ class ListingRepository implements IListingRepository {
   Future<List<CarListing>> followedBy(String userId) async {
     final ids = await followedIds(userId);
     if (ids.isEmpty) return const [];
-    final rows = await _guard(_source.readListings);
-    return rows.map(_toListing).where((l) => ids.contains(l.id)).toList();
+    // Los ids salen de la lectura normal, que solo da los seguimientos
+    // propios; la consulta solo recibe esos. Antes se bajaba el catalogo
+    // entero para quedarse con unas pocas.
+    final rows = await _guard(() => _source.listingsByIds(ids.toList()));
+    final result = rows.map(_toListing).toList();
+    result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return result;
   }
 
   @override

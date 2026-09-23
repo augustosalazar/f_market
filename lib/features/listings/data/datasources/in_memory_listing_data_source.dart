@@ -25,10 +25,27 @@ class InMemoryListingDataSource implements IListingDataSource {
     return _data.listings.where((r) => _matches(r, filters)).toList();
   }
 
+  /// Solo la marca: el resto lo filtra el repositorio, y repetirlo aqui seria
+  /// probar una copia de la regla en vez de la regla.
+  @override
+  Future<List<Map<String, dynamic>>> searchListings({
+    required String text,
+    String? brand,
+    double? minPrice,
+    double? maxPrice,
+    int? minYear,
+  }) => readListings(filters: brand == null ? null : {'brand': brand});
+
   @override
   Future<Map<String, dynamic>?> listingById(String id) async {
     await Future.delayed(_delay);
     return _data.listings.where((r) => r['_id'] == id).firstOrNull;
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> listingsByIds(List<String> ids) async {
+    await Future.delayed(_delay);
+    return _data.listings.where((r) => ids.contains(r['_id'])).toList();
   }
 
   @override

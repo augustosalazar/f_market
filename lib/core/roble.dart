@@ -41,6 +41,18 @@ class RobleClient {
   /// Las calificaciones entre las dos partes de una venta.
   static const ratings = 'user_rating';
 
+  /// La consulta guardada que filtra el catalogo en el servidor.
+  ///
+  /// **Corre sin el alcance `own` y sin mirar si la tabla es publica**: ve
+  /// todas las filas, y sus parametros los pone el cliente. Por eso solo lee
+  /// `listing`, que ya es publica. Nunca una consulta que filtre por «mi»
+  /// usuario: cualquiera podria pasar el id de otro.
+  static const searchListingsQuery = 'market_search_listings';
+
+  /// La consulta guardada que trae varias publicaciones por su `_id` de una
+  /// vez (`$1` es un `uuid[]`). Misma advertencia: solo lee `listing`.
+  static const listingsByIdsQuery = 'market_listings_by_ids';
+
   /// La coleccion del arbol JSON donde viven los mensajes. Los hilos cuelgan
   /// de ella: `chat_message/<threadId>/<claveDelServidor>`.
   static const messages = 'chat_message';
@@ -62,15 +74,14 @@ class RobleClient {
   /// El catalogo se lee sin sesion (requisito 3), pero `publicRead` solo
   /// funciona si la tabla esta marcada como publica en la consola. Con una
   /// cuenta de verdad se usa la lectura normal, que no depende de esa marca.
+  ///
+  /// Los filtros viajan en los dos caminos: `public-read` tambien filtra por
+  /// igualdad en el servidor. Antes se bajaba la tabla entera y se filtraba
+  /// aqui.
   Future<List<Map<String, dynamic>>> readPublicOrPrivate(
     String table, {
     Map<String, dynamic>? filters,
-  }) async {
-    if (!readsPublicly) return db.read(table, filters: filters);
-    final rows = await db.publicRead(table);
-    if (filters == null || filters.isEmpty) return rows;
-    return rows
-        .where((row) => filters.entries.every((f) => row[f.key] == f.value))
-        .toList();
-  }
+  }) => readsPublicly
+      ? db.publicRead(table, filters: filters)
+      : db.read(table, filters: filters);
 }

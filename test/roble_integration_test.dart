@@ -153,6 +153,33 @@ void main() {
       expect(publicacion.price, 78500000);
       expect(publicacion.title, contains('Prueba $sello'));
 
+      // --- con cuenta, el filtro lo resuelve la consulta guardada -------
+      // Si el servidor no filtrara, el repositorio lo taparia: por eso se
+      // mira la fuente directamente, no solo el resultado del repositorio.
+      final fuenteComprador = RobleListingDataSource(compradorCliente);
+      final filtradas = await fuenteComprador.searchListings(
+        text: 'prueba $sello',
+        brand: 'Mazda',
+        minPrice: 78000000,
+        maxPrice: 79000000,
+        minYear: 2021,
+      );
+      print('  consulta guardada: ${filtradas.length} filas');
+      expect(filtradas.map((r) => r['_id']), [publicacion.id]);
+      expect(
+        await fuenteComprador.searchListings(
+          text: 'prueba $sello',
+          minYear: 2022,
+        ),
+        isEmpty,
+      );
+      final buscadas = await listingsComprador.search(
+        ListingFilter(query: 'PRUEBA $sello', brand: 'Mazda'),
+      );
+      expect(buscadas.map((l) => l.id), [publicacion.id]);
+      expect(buscadas.single.price, 78500000);
+      expect(buscadas.single.createdAt, isNotNull);
+
       // --- el catalogo se ve sin sesion (requisito 3) -----------------
       try {
         final publico = await listingsAnonimo.search(const ListingFilter());
@@ -176,6 +203,10 @@ void main() {
         await listingsVendedor.followerIdsOf(publicacion.id),
         contains(comprador.userId),
       );
+      // Con cuenta, lo seguido llega por la consulta guardada.
+      final seguidas = await listingsComprador.followedBy(comprador.userId);
+      print('  seguidas por consulta guardada: ${seguidas.length}');
+      expect(seguidas.map((l) => l.id), [publicacion.id]);
 
       final pregunta = await qaComprador.ask(
         listingId: publicacion.id,
