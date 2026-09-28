@@ -349,27 +349,43 @@ lista. **La API rechaza los arrays JSON** en una columna `jsonb` (400
 requisito ya limita a tres fotos, tres columnas dejan el tope estructural y se
 leen de un viaje.
 
-### El smoke
+### Las pruebas
 
-`test/smoke_test.dart` comprueba la conexion real: registra una cuenta
-desechable, entra, escribe en el arbol JSON, escucha el cambio y borra lo que
-creo. Se corre a mano, no en CI:
+Ninguna habla con Roble: probar el servidor no es trabajo de esta app. Todas
+usan las fuentes de datos en memoria (`InMemory...DataSource`), que es lo unico
+que cambia respecto a produccion.
 
-```bash
-set -a && . ./.roble.mcp.env && set +a
-flutter test test/smoke_test.dart --reporter expanded
-```
+| Carpeta | Que prueba | Como se corre |
+|---|---|---|
+| `test/unit/<feature>/` | view models y repositorios | `flutter test test/unit` |
+| `test/widget/<feature>/` | una pantalla suelta | `flutter test test/widget` |
+| `integration_test/` | la app entera, con `LocalBindings` | `flutter test integration_test -d macos` |
 
-Es el que trae la skill `use-roble` con **una correccion**: el original escucha
-la coleccion antes de crearla, y por eso su paso de tiempo real no puede pasar.
+`flutter test` a secas corre `test/`, sin red ni cuenta. Las de integracion
+necesitan un dispositivo (macOS, un emulador) porque arrancan la app de verdad;
+lo unico que se les cambia es de donde salen los datos:
+`RobleMarketApp(bindings: LocalBindings())`.
 
-### La prueba de integracion
+**Una prueba unitaria prueba una sola pieza**, y lo que esa pieza usa es un
+falso escrito a mano. Con `extends Fake implements ...` solo se escriben los
+metodos que la prueba necesita. Cada archivo sirve de plantilla para un caso:
 
-`test/roble_integration_test.dart` recorre el flujo entero contra el servidor
-—publicar, seguir, preguntar, responder, cambiar de estado, chatear con tiempo
-real— con dos cuentas desechables que se borran al terminar. Se corre igual que
-el smoke, y **necesita los permisos de arriba**: sin ellos falla en la primera
-operacion que no sea INSERT o SELECT.
+| Archivo | Que ensena |
+|---|---|
+| `unit/listings/listing_filter_test.dart` | dominio puro: sin nada falso |
+| `unit/auth/session_view_model_test.dart` | un view model: validaciones y estado, con repositorio falso |
+| `unit/auth/auth_repository_test.dart` | un repositorio: convertir filas y traducir errores, con fuente falsa |
+| `unit/listings/listing_repository_test.dart` | lo mismo con publicaciones: precio en texto, orden, un 404 |
+| `widget/listings/listing_card_test.dart` | un widget sin estado: datos y funciones, nada falso |
+| `widget/auth/login_page_test.dart` | una pantalla con su view model: errores visibles, boton que aparece o no |
+| `widget/listings/catalog_page_test.dart` | una pantalla que lista datos: el repositorio falso anota lo que le piden |
+
+Las de integracion se corren mejor en un emulador. En macOS, si la ventana de la
+app queda detras de otra («Failed to foreground app»), el sistema deja de
+pintarla y la prueba se queda esperando un frame que no llega.
+
+`test/unit/sin_roble_test.dart` vigila la regla: falla si una prueba usa el
+cliente de Roble, una fuente `roble_...` o `AppBindings`.
 
 Roble no tiene claves foraneas: `listing_id` apuntando a `listing._id` es
 convencion de nombres. Por eso los nombres van denormalizados en las filas

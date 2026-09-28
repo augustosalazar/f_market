@@ -10,14 +10,25 @@ import 'package:f_roble_market/routes/app_routes.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Los formatos de fecha en espanol necesitan cargarse antes de usarse.
-  Intl.defaultLocale = 'es';
-  await initializeDateFormatting('es');
+  await prepareApp();
   runApp(const RobleMarketApp());
 }
 
+/// Lo que tiene que estar listo antes del primer frame. Aparte de `main` para
+/// que las pruebas de integracion arranquen la app igual que en produccion.
+Future<void> prepareApp() async {
+  // Los formatos de fecha en espanol necesitan cargarse antes de usarse.
+  Intl.defaultLocale = 'es';
+  await initializeDateFormatting('es');
+}
+
 class RobleMarketApp extends StatelessWidget {
-  const RobleMarketApp({super.key});
+  const RobleMarketApp({super.key, this.bindings});
+
+  /// De donde salen los datos. Sin nada, de Roble (`AppBindings`). Las pruebas
+  /// de integracion pasan `LocalBindings`: la misma app, con las fuentes de
+  /// datos en memoria en vez de las del servidor.
+  final Bindings? bindings;
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +37,7 @@ class RobleMarketApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      initialBinding: AppBindings(),
+      initialBinding: bindings ?? AppBindings(),
       initialRoute: AppRoutes.splash,
       getPages: AppPages.routes,
     );
