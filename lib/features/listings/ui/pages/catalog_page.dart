@@ -12,6 +12,14 @@ import 'package:f_roble_market/routes/app_routes.dart';
 /// El catalogo: la primera pantalla y la unica que se ve sin sesion
 /// (requisito 3).
 class CatalogPage extends GetView<CatalogViewModel> {
+  /// Las claves que usan las pruebas para llegar a la lista sin depender de
+  /// su texto. Viven aqui, junto al widget, para que prueba y pantalla
+  /// compartan el nombre: una errata es un error de compilacion.
+  static const listKey = Key('catalog.list');
+
+  /// La tarjeta de una publicacion, por su id.
+  static Key cardKey(String listingId) => ValueKey('catalog.card.$listingId');
+
   const CatalogPage({super.key});
 
   @override
@@ -81,12 +89,14 @@ class CatalogPage extends GetView<CatalogViewModel> {
         return RefreshIndicator(
           onRefresh: controller.load,
           child: ListView.builder(
+            key: listKey,
             padding: const EdgeInsets.only(top: 8, bottom: 96),
             itemCount: controller.listings.length,
             itemBuilder: (context, index) {
               final listing = controller.listings[index];
               return Obx(
                 () => ListingCard(
+                  key: cardKey(listing.id),
                   listing: listing,
                   isFollowed: controller.followed.contains(listing.id),
                   onToggleFollow: () => controller.toggleFollow(listing.id),

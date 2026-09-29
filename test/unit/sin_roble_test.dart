@@ -14,7 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// una. Lanzar un `RobleApiConflictException` no sale a la red; construir un
 /// `RobleApiDataBase`, si.
 void main() {
-  const prohibido = {
+  const forbidden = {
     'core/roble.dart': 'el cliente de Roble de la app',
     'datasources/roble_': 'una fuente de datos que habla con el servidor',
     'di/app_bindings.dart': 'las dependencias de produccion, que usan Roble',
@@ -22,7 +22,7 @@ void main() {
   };
 
   test('ninguna prueba usa el servidor de Roble', () {
-    final pruebas = [Directory('test'), Directory('integration_test')]
+    final testFiles = [Directory('test'), Directory('integration_test')]
         .where((d) => d.existsSync())
         .expand((d) => d.listSync(recursive: true))
         .whereType<File>()
@@ -30,13 +30,13 @@ void main() {
         // Este archivo nombra lo prohibido para poder buscarlo.
         .where((f) => !f.path.endsWith('sin_roble_test.dart'));
 
-    final infracciones = <String>[
-      for (final prueba in pruebas)
-        for (final MapEntry(key: patron, value: que) in prohibido.entries)
-          if (prueba.readAsStringSync().contains(patron))
-            '${prueba.path}: usa $que ($patron). Usa las fuentes en memoria.',
+    final violations = <String>[
+      for (final testFile in testFiles)
+        for (final MapEntry(key: pattern, value: what) in forbidden.entries)
+          if (testFile.readAsStringSync().contains(pattern))
+            '${testFile.path}: usa $what ($pattern). Usa las fuentes en memoria.',
     ];
 
-    expect(infracciones, isEmpty, reason: infracciones.join('\n'));
+    expect(violations, isEmpty, reason: violations.join('\n'));
   });
 }

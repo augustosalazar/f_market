@@ -29,12 +29,15 @@ final mazda = CarListing(
 
 /// Todo widget necesita un `MaterialApp` alrededor: de ahi salen el tema, la
 /// direccion del texto y los tooltips.
-Widget enPantalla(Widget widget) =>
-    MaterialApp(home: Scaffold(body: SingleChildScrollView(child: widget)));
+Widget wrapInApp(Widget widget) => MaterialApp(
+  home: Scaffold(body: SingleChildScrollView(child: widget)),
+);
 
 void main() {
   testWidgets('pinta el titulo, el precio y el estado', (tester) async {
-    await tester.pumpWidget(enPantalla(ListingCard(listing: mazda, onTap: () {})));
+    await tester.pumpWidget(
+      wrapInApp(ListingCard(listing: mazda, onTap: () {})),
+    );
 
     expect(find.text('Mazda 3 2021'), findsOneWidget);
     expect(find.text(Formatters.price(78500000)), findsOneWidget);
@@ -42,14 +45,16 @@ void main() {
   });
 
   testWidgets('sin onToggleFollow no hay estrella', (tester) async {
-    await tester.pumpWidget(enPantalla(ListingCard(listing: mazda, onTap: () {})));
+    await tester.pumpWidget(
+      wrapInApp(ListingCard(listing: mazda, onTap: () {})),
+    );
 
-    expect(find.byIcon(Icons.star_border), findsNothing);
+    expect(find.byKey(ListingCard.followButtonKey), findsNothing);
   });
 
   testWidgets('la estrella dice si ya se sigue', (tester) async {
     await tester.pumpWidget(
-      enPantalla(
+      wrapInApp(
         ListingCard(
           listing: mazda,
           onTap: () {},
@@ -64,30 +69,26 @@ void main() {
   });
 
   testWidgets('tocar la estrella avisa a quien la puso', (tester) async {
-    var toques = 0;
+    var taps = 0;
     await tester.pumpWidget(
-      enPantalla(
-        ListingCard(
-          listing: mazda,
-          onTap: () {},
-          onToggleFollow: () => toques++,
-        ),
+      wrapInApp(
+        ListingCard(listing: mazda, onTap: () {}, onToggleFollow: () => taps++),
       ),
     );
 
-    await tester.tap(find.byTooltip('Seguir y recibir avisos'));
+    await tester.tap(find.byKey(ListingCard.followButtonKey));
 
-    expect(toques, 1);
+    expect(taps, 1);
   });
 
   testWidgets('tocar la tarjeta abre la publicacion', (tester) async {
-    var abierta = false;
+    var opened = false;
     await tester.pumpWidget(
-      enPantalla(ListingCard(listing: mazda, onTap: () => abierta = true)),
+      wrapInApp(ListingCard(listing: mazda, onTap: () => opened = true)),
     );
 
-    await tester.tap(find.text('Mazda 3 2021'));
+    await tester.tap(find.byType(ListingCard));
 
-    expect(abierta, isTrue);
+    expect(opened, isTrue);
   });
 }

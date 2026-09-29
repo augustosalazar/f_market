@@ -380,6 +380,13 @@ metodos que la prueba necesita. Cada archivo sirve de plantilla para un caso:
 | `widget/auth/login_page_test.dart` | una pantalla con su view model: errores visibles, boton que aparece o no |
 | `widget/listings/catalog_page_test.dart` | una pantalla que lista datos: el repositorio falso anota lo que le piden |
 
+**Se toca por clave, se comprueba por texto.** Para llegar a un boton, un
+campo o una tarjeta, las pruebas usan claves (`find.byKey(LoginPage.submitButtonKey)`),
+declaradas como constantes en el propio widget: si cambia el texto del boton,
+la prueba no se rompe. Para comprobar lo que la persona lee —un mensaje de
+error, el nombre en el perfil—, se busca el texto, porque ese texto *es* lo que
+se esta probando.
+
 Las de integracion se corren mejor en un emulador. En macOS, si la ventana de la
 app queda detras de otra («Failed to foreground app»), el sistema deja de
 pintarla y la prueba se queda esperando un frame que no llega.

@@ -10,104 +10,112 @@ import 'package:f_roble_market/features/auth/ui/viewmodels/session_view_model.da
 /// `Fake` deja escribir solo los metodos que se usan. Si el view model llamara
 /// a otro, la prueba fallaria diciendo cual.
 class FakeAuthRepository extends Fake implements IAuthRepository {
-  AppUser? usuario;
-  AuthFailure? fallo;
-  int llamadas = 0;
+  AppUser? userToReturn;
+  AuthFailure? failureToThrow;
+  int loginCalls = 0;
 
   @override
   Future<AppUser> loginWithEmail({
     required String email,
     required String password,
   }) async {
-    llamadas++;
-    if (fallo != null) throw fallo!;
-    return usuario!;
+    loginCalls++;
+    if (failureToThrow != null) throw failureToThrow!;
+    return userToReturn!;
   }
 }
 
 const ana = AppUser(userId: 'u_ana', name: 'Ana Torres', email: 'ana@demo.com');
 
 void main() {
-  late FakeAuthRepository repositorio;
-  late SessionViewModel viewModel;
+  late FakeAuthRepository fakeAuthRepository;
+  late SessionViewModel sessionViewModel;
 
   setUp(() {
-    repositorio = FakeAuthRepository();
-    viewModel = SessionViewModel(repositorio);
+    fakeAuthRepository = FakeAuthRepository();
+    sessionViewModel = SessionViewModel(fakeAuthRepository);
   });
 
   group('validaciones', () {
     test('un correo mal escrito no llega al repositorio', () async {
-      final entro = await viewModel.login(email: 'ana', password: '123456');
+      final signedIn = await sessionViewModel.login(
+        email: 'ana',
+        password: '123456',
+      );
 
-      expect(entro, isFalse);
-      expect(viewModel.error.value, 'Ese correo no parece valido.');
-      expect(repositorio.llamadas, 0);
+      expect(signedIn, isFalse);
+      expect(sessionViewModel.error.value, 'Ese correo no parece valido.');
+      expect(fakeAuthRepository.loginCalls, 0);
     });
 
     test('sin contrasena no llega al repositorio', () async {
-      final entro = await viewModel.login(email: 'ana@demo.com', password: '');
+      final signedIn = await sessionViewModel.login(
+        email: 'ana@demo.com',
+        password: '',
+      );
 
-      expect(entro, isFalse);
-      expect(viewModel.error.value, 'Escribe tu contrasena.');
-      expect(repositorio.llamadas, 0);
+      expect(signedIn, isFalse);
+      expect(sessionViewModel.error.value, 'Escribe tu contrasena.');
+      expect(fakeAuthRepository.loginCalls, 0);
     });
 
     test('al registrarse, las contrasenas tienen que coincidir', () async {
-      final entro = await viewModel.register(
+      final signedIn = await sessionViewModel.register(
         name: 'Ana Torres',
         email: 'ana@demo.com',
         password: '123456',
         confirmation: '654321',
       );
 
-      expect(entro, isFalse);
-      expect(viewModel.error.value, 'Las contrasenas no coinciden.');
+      expect(signedIn, isFalse);
+      expect(sessionViewModel.error.value, 'Las contrasenas no coinciden.');
     });
   });
 
   group('estado', () {
     test('entrar guarda al usuario y apaga la carga', () async {
-      repositorio.usuario = ana;
+      fakeAuthRepository.userToReturn = ana;
 
-      final entro = await viewModel.login(
+      final signedIn = await sessionViewModel.login(
         email: 'ana@demo.com',
         password: '123456',
       );
 
-      expect(entro, isTrue);
-      expect(viewModel.user.value, ana);
-      expect(viewModel.busy.value, isFalse);
-      expect(viewModel.error.value, isNull);
+      expect(signedIn, isTrue);
+      expect(sessionViewModel.user.value, ana);
+      expect(sessionViewModel.busy.value, isFalse);
+      expect(sessionViewModel.error.value, isNull);
     });
 
     test('si el repositorio falla, se muestra su mensaje', () async {
-      repositorio.fallo = AuthFailure('Correo o contrasena incorrectos.');
+      fakeAuthRepository.failureToThrow = AuthFailure(
+        'Correo o contrasena incorrectos.',
+      );
 
-      final entro = await viewModel.login(
+      final signedIn = await sessionViewModel.login(
         email: 'ana@demo.com',
         password: 'mala',
       );
 
-      expect(entro, isFalse);
-      expect(viewModel.user.value, isNull);
-      expect(viewModel.error.value, 'Correo o contrasena incorrectos.');
-      expect(viewModel.busy.value, isFalse);
+      expect(signedIn, isFalse);
+      expect(sessionViewModel.user.value, isNull);
+      expect(sessionViewModel.error.value, 'Correo o contrasena incorrectos.');
+      expect(sessionViewModel.busy.value, isFalse);
     });
   });
 
   group('invitados', () {
     test('un invitado tiene sesion pero no cuenta', () {
-      viewModel.user.value = const AppUser(
+      sessionViewModel.user.value = const AppUser(
         userId: 'u_invitado',
         name: 'Invitado',
         email: '',
         isAnonymous: true,
       );
 
-      expect(viewModel.isLoggedIn, isTrue);
-      expect(viewModel.isGuest, isTrue);
-      expect(viewModel.hasAccount, isFalse);
+      expect(sessionViewModel.isLoggedIn, isTrue);
+      expect(sessionViewModel.isGuest, isTrue);
+      expect(sessionViewModel.hasAccount, isFalse);
     });
   });
 }

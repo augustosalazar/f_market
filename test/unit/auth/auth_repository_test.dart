@@ -11,29 +11,29 @@ import 'package:f_roble_market/features/auth/domain/auth_failure.dart';
 /// Se importa `package:roble` solo por sus excepciones: el trabajo del
 /// repositorio es traducirlas, y para probarlo hay que lanzar una.
 class FakeAuthDataSource extends Fake implements IAuthDataSource {
-  Map<String, dynamic> perfil = {};
-  Object? error;
-  List<Map<String, dynamic>> proveedores = [];
+  Map<String, dynamic> profileToReturn = {};
+  Object? errorToThrow;
+  List<Map<String, dynamic>> providersToReturn = [];
 
   @override
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
   }) async {
-    if (error != null) throw error!;
-    return perfil;
+    if (errorToThrow != null) throw errorToThrow!;
+    return profileToReturn;
   }
 
   @override
   Future<Map<String, dynamic>> signInWithGoogle() async {
-    if (error != null) throw error!;
-    return perfil;
+    if (errorToThrow != null) throw errorToThrow!;
+    return profileToReturn;
   }
 
   @override
   Future<List<Map<String, dynamic>>> listProviders() async {
-    if (error != null) throw error!;
-    return proveedores;
+    if (errorToThrow != null) throw errorToThrow!;
+    return providersToReturn;
   }
 
   // El repositorio los usa al convertir el perfil; aqui no importan.
@@ -45,50 +45,56 @@ class FakeAuthDataSource extends Fake implements IAuthDataSource {
 }
 
 void main() {
-  late FakeAuthDataSource fuente;
-  late AuthRepository repositorio;
+  late FakeAuthDataSource fakeAuthDataSource;
+  late AuthRepository authRepository;
 
   setUp(() {
-    fuente = FakeAuthDataSource();
-    repositorio = AuthRepository(fuente);
+    fakeAuthDataSource = FakeAuthDataSource();
+    authRepository = AuthRepository(fakeAuthDataSource);
   });
 
   group('convertir el perfil', () {
     test('la fila del servidor se vuelve un AppUser', () async {
-      fuente.perfil = {
+      fakeAuthDataSource.profileToReturn = {
         'userId': 'u_ana',
         'name': 'Ana Torres',
         'email': 'ana@demo.com',
       };
 
-      final usuario = await repositorio.loginWithEmail(
+      final user = await authRepository.loginWithEmail(
         email: 'ana@demo.com',
         password: '123456',
       );
 
-      expect(usuario.userId, 'u_ana');
-      expect(usuario.name, 'Ana Torres');
-      expect(usuario.isAnonymous, isFalse);
+      expect(user.userId, 'u_ana');
+      expect(user.name, 'Ana Torres');
+      expect(user.isAnonymous, isFalse);
     });
 
     test('un perfil sin nombre se muestra como «Sin nombre»', () async {
-      fuente.perfil = {'userId': 'u_1', 'email': 'x@demo.com'};
+      fakeAuthDataSource.profileToReturn = {
+        'userId': 'u_1',
+        'email': 'x@demo.com',
+      };
 
-      final usuario = await repositorio.loginWithEmail(
+      final user = await authRepository.loginWithEmail(
         email: 'x@demo.com',
         password: '123456',
       );
 
-      expect(usuario.name, 'Sin nombre');
+      expect(user.name, 'Sin nombre');
     });
   });
 
   group('traducir errores', () {
     test('un error del servidor llega como AuthFailure con su mensaje', () {
-      fuente.error = const RobleApiHttpException(401, 'Credenciales invalidas');
+      fakeAuthDataSource.errorToThrow = const RobleApiHttpException(
+        401,
+        'Credenciales invalidas',
+      );
 
       expect(
-        repositorio.loginWithEmail(email: 'ana@demo.com', password: 'mala'),
+        authRepository.loginWithEmail(email: 'ana@demo.com', password: 'mala'),
         throwsA(
           isA<AuthFailure>().having(
             (f) => f.message,
@@ -100,10 +106,12 @@ void main() {
     });
 
     test('un 409 con Google dice que el correo ya tiene cuenta', () {
-      fuente.error = const RobleApiConflictException('Correo registrado');
+      fakeAuthDataSource.errorToThrow = const RobleApiConflictException(
+        'Correo registrado',
+      );
 
       expect(
-        repositorio.signInWithGoogle(),
+        authRepository.signInWithGoogle(),
         throwsA(
           isA<AuthFailure>().having(
             (f) => f.code,
@@ -117,17 +125,19 @@ void main() {
 
   group('Google', () {
     test('esta disponible si el servidor lo tiene encendido', () async {
-      fuente.proveedores = [
+      fakeAuthDataSource.providersToReturn = [
         {'name': 'google', 'displayName': 'Google'},
       ];
 
-      expect(await repositorio.googleEnabled(), isTrue);
+      expect(await authRepository.googleEnabled(), isTrue);
     });
 
     test('si el servidor no contesta, no se ofrece', () async {
-      fuente.error = const RobleApiNetworkException('Sin conexion');
+      fakeAuthDataSource.errorToThrow = const RobleApiNetworkException(
+        'Sin conexion',
+      );
 
-      expect(await repositorio.googleEnabled(), isFalse);
+      expect(await authRepository.googleEnabled(), isFalse);
     });
   });
 }

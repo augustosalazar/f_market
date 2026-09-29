@@ -8,6 +8,10 @@ import 'package:f_roble_market/features/listings/domain/models/car_listing.dart'
 /// La tarjeta del catalogo. Es la unidad que se repite en todas las listas de
 /// publicaciones, asi que vive en la feature y no en cada pantalla.
 class ListingCard extends StatelessWidget {
+  /// El boton de la estrella. Hay uno por tarjeta: para uno concreto, se busca
+  /// dentro de la tarjeta que interesa.
+  static const followButtonKey = Key('listingCard.follow');
+
   const ListingCard({
     super.key,
     required this.listing,
@@ -50,6 +54,7 @@ class ListingCard extends StatelessWidget {
                     right: 4,
                     top: 4,
                     child: IconButton.filledTonal(
+                      key: followButtonKey,
                       onPressed: onToggleFollow,
                       tooltip: isFollowed
                           ? 'Dejar de seguir'

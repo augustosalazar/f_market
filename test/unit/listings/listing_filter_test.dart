@@ -5,35 +5,35 @@ import 'package:f_roble_market/features/listings/domain/models/listing_filter.da
 /// Dominio puro: entra un valor, sale otro. No hace falta nada falso.
 void main() {
   test('un filtro nuevo esta vacio', () {
-    const filtro = ListingFilter();
+    const filter = ListingFilter();
 
-    expect(filtro.isEmpty, isTrue);
+    expect(filter.isEmpty, isTrue);
   });
 
   test('con texto de busqueda ya no esta vacio', () {
-    const filtro = ListingFilter(query: 'mazda');
+    const filter = ListingFilter(query: 'mazda');
 
-    expect(filtro.isEmpty, isFalse);
+    expect(filter.isEmpty, isFalse);
   });
 
   test('copyWith cambia solo lo que se le pasa', () {
-    const filtro = ListingFilter(query: 'mazda', minYear: 2020);
+    const filter = ListingFilter(query: 'mazda', minYear: 2020);
 
-    final nuevo = filtro.copyWith(brand: 'Kia');
+    final updated = filter.copyWith(brand: 'Kia');
 
-    expect(nuevo.brand, 'Kia');
-    expect(nuevo.query, 'mazda');
-    expect(nuevo.minYear, 2020);
+    expect(updated.brand, 'Kia');
+    expect(updated.query, 'mazda');
+    expect(updated.minYear, 2020);
   });
 
   test('clearBrand quita la marca', () {
     // Pasar `brand: null` no la quitaria: `copyWith` lo lee como «no la
     // toques». Por eso existen los `clear...`.
-    const filtro = ListingFilter(brand: 'Kia');
+    const filter = ListingFilter(brand: 'Kia');
 
-    final nuevo = filtro.copyWith(clearBrand: true);
+    final updated = filter.copyWith(clearBrand: true);
 
-    expect(nuevo.brand, isNull);
-    expect(nuevo.isEmpty, isTrue);
+    expect(updated.brand, isNull);
+    expect(updated.isEmpty, isTrue);
   });
 }

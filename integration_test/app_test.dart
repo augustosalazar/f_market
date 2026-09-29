@@ -5,6 +5,11 @@ import 'package:integration_test/integration_test.dart';
 
 import 'package:f_roble_market/core/data/dummy_data.dart';
 import 'package:f_roble_market/di/local_bindings.dart';
+import 'package:f_roble_market/features/auth/ui/pages/login_page.dart';
+import 'package:f_roble_market/features/home/ui/pages/home_page.dart';
+import 'package:f_roble_market/features/listings/ui/pages/my_listings_page.dart';
+import 'package:f_roble_market/features/listings/ui/widgets/brand_strip.dart';
+import 'package:f_roble_market/features/listings/ui/widgets/listing_card.dart';
 import 'package:f_roble_market/main.dart';
 
 /// La app entera —rutas, pantallas, view models y repositorios de verdad— con
@@ -27,83 +32,84 @@ void main() {
   // siguiente.
   tearDown(Get.reset);
 
-  Future<void> arrancar(WidgetTester tester) async {
+  // Se toca y se recorre por clave; se comprueba por texto lo que la persona
+  // lee en pantalla.
+
+  Future<void> startApp(WidgetTester tester) async {
     await tester.pumpWidget(RobleMarketApp(bindings: LocalBindings()));
-    await tester.esperar(find.text('Chevrolet Onix Turbo 2023'));
+    await tester.waitFor(find.text('Chevrolet Onix Turbo 2023'));
   }
 
-  Future<void> irA(WidgetTester tester, String pestana) async {
-    await tester.tap(find.widgetWithText(NavigationDestination, pestana));
+  Future<void> goToTab(WidgetTester tester, Key tab) async {
+    await tester.tap(find.byKey(tab));
     await tester.pump();
   }
 
   testWidgets('un visitante ve el catalogo sin cuenta', (tester) async {
-    await arrancar(tester);
+    await startApp(tester);
 
     expect(find.text('Chevrolet Onix Turbo 2023'), findsOneWidget);
     expect(find.text('Disponible'), findsWidgets);
   });
 
   testWidgets('tocar una marca filtra el catalogo', (tester) async {
-    await arrancar(tester);
+    await startApp(tester);
 
     // Las marcas se cargan despues de las publicaciones: hay que esperarlas.
     // Renault es de las primeras de la tira: cabe en la pantalla de un
     // telefono sin desplazarla. Una marca del final no llegaria a construirse.
-    final renault = find.widgetWithText(ChoiceChip, 'Renault');
-    await tester.esperar(renault);
-    await tester.tap(renault);
+    final renaultChip = find.byKey(BrandStrip.chipKey('Renault'));
+    await tester.waitFor(renaultChip);
+    await tester.tap(renaultChip);
 
     // De las publicaciones de prueba, el unico Renault es el Duster, y el
     // Chevrolet que iba primero desaparece.
-    await tester.esperar(find.textContaining('Duster'));
-    await tester.esperarQueSeVaya(find.text('Chevrolet Onix Turbo 2023'));
+    await tester.waitFor(find.textContaining('Duster'));
+    await tester.waitUntilGone(find.text('Chevrolet Onix Turbo 2023'));
   });
 
   testWidgets('entrar con la cuenta de demo', (tester) async {
-    await arrancar(tester);
+    await startApp(tester);
 
     // «Lo mio» sin sesion ofrece entrar.
-    await irA(tester, 'Lo mio');
-    await tester.tap(find.widgetWithText(FilledButton, 'Entrar'));
-    // Mientras el login entra animado, «Lo mio» sigue a la vista con su propio
-    // boton «Entrar». Hay que esperar a que se tape antes de tocar otra vez.
-    await tester.esperarQueSeVaya(find.text('Entra para ver lo tuyo'));
+    await goToTab(tester, HomePage.mineTabKey);
+    await tester.tap(find.byKey(MyListingsPage.signInButtonKey));
+    // Mientras el login entra animado, «Lo mio» sigue a la vista, y un toque
+    // en ese momento no llega al login. Se espera a que quede tapado.
+    await tester.waitUntilGone(find.byKey(MyListingsPage.signInButtonKey));
 
     // El login viene precargado con la cuenta de demo de los datos falsos.
     expect(find.text(DummyData.demoEmail), findsOneWidget);
-    await tester.tap(find.widgetWithText(FilledButton, 'Entrar'));
+    await tester.tap(find.byKey(LoginPage.submitButtonKey));
     // Lo mismo al volver: si se toca la barra de abajo mientras el login se
     // cierra, el toque cae en el login.
-    await tester.esperarQueSeVaya(
-      find.text('Entra para publicar, preguntar y chatear.'),
-    );
+    await tester.waitUntilGone(find.byKey(LoginPage.submitButtonKey));
 
     // De vuelta en la app, el perfil es el de Ana.
-    await irA(tester, 'Perfil');
-    await tester.esperar(find.text('Ana Torres'));
+    await goToTab(tester, HomePage.profileTabKey);
+    await tester.waitFor(find.text('Ana Torres'));
   });
 
   testWidgets('seguir sin cuenta abre una sesion de invitado', (tester) async {
-    await arrancar(tester);
+    await startApp(tester);
 
     // Sin pasar por el login: seguir es el gesto de quien todavia mira.
-    await tester.tap(find.byTooltip('Seguir y recibir avisos').first);
-    await tester.esperar(find.byTooltip('Dejar de seguir'));
-    expect(find.text('Entra para publicar, preguntar y chatear.'), findsNothing);
+    await tester.tap(find.byKey(ListingCard.followButtonKey).first);
+    await tester.waitFor(find.byTooltip('Dejar de seguir'));
+    expect(find.byKey(LoginPage.submitButtonKey), findsNothing);
 
     // Y lo seguido es suyo: aparece en «Lo mio», sin haber creado cuenta.
-    await irA(tester, 'Lo mio');
-    await tester.esperar(find.text('Siguiendo'));
-    await tester.tap(find.text('Siguiendo'));
-    await tester.esperar(find.text('Chevrolet Onix Turbo 2023'));
+    await goToTab(tester, HomePage.mineTabKey);
+    await tester.waitFor(find.byKey(MyListingsPage.followingTabKey));
+    await tester.tap(find.byKey(MyListingsPage.followingTabKey));
+    await tester.waitFor(find.text('Chevrolet Onix Turbo 2023'));
   });
 }
 
 extension on WidgetTester {
   /// Avanza hasta que [finder] ya no este en pantalla.
-  Future<void> esperarQueSeVaya(Finder finder) =>
-      esperar(finder, presente: false);
+  Future<void> waitUntilGone(Finder finder) =>
+      waitFor(finder, shouldBePresent: false);
 
   /// Avanza hasta que aparezca [finder].
   ///
@@ -113,19 +119,21 @@ extension on WidgetTester {
   ///
   /// Y en un dispositivo `pump(duracion)` **no espera** esa duracion: solo
   /// pinta un frame. Por eso se mide el tiempo con el reloj de verdad.
-  Future<void> esperar(
+  Future<void> waitFor(
     Finder finder, {
-    bool presente = true,
-    Duration limite = const Duration(seconds: 10),
+    bool shouldBePresent = true,
+    Duration timeout = const Duration(seconds: 10),
   }) async {
-    final fin = DateTime.now().add(limite);
-    while (DateTime.now().isBefore(fin)) {
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
       await pump();
-      if (finder.evaluate().isNotEmpty == presente) return;
+      if (finder.evaluate().isNotEmpty == shouldBePresent) return;
       await Future<void>.delayed(const Duration(milliseconds: 100));
     }
     throw TestFailure(
-      presente ? 'No aparecio a tiempo: $finder' : 'No se fue a tiempo: $finder',
+      shouldBePresent
+          ? 'No aparecio a tiempo: $finder'
+          : 'No se fue a tiempo: $finder',
     );
   }
 }

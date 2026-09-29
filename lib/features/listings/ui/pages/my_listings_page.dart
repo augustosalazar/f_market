@@ -12,6 +12,9 @@ import 'package:f_roble_market/routes/app_routes.dart';
 
 /// Lo mio: lo que vendo, y lo que sigo (que es lo que me genera avisos).
 class MyListingsPage extends GetView<MyListingsViewModel> {
+  static const followingTabKey = Key('mine.tab.following');
+  static const signInButtonKey = Key('mine.signIn');
+
   const MyListingsPage({super.key});
 
   @override
@@ -26,7 +29,7 @@ class MyListingsPage extends GetView<MyListingsViewModel> {
           bottom: const TabBar(
             tabs: [
               Tab(text: 'Mis publicaciones'),
-              Tab(text: 'Siguiendo'),
+              Tab(key: followingTabKey, text: 'Siguiendo'),
             ],
           ),
         ),
@@ -46,6 +49,7 @@ class MyListingsPage extends GetView<MyListingsViewModel> {
               title: 'Entra para ver lo tuyo',
               message: 'Necesitas una cuenta para publicar y seguir carros.',
               action: FilledButton(
+                key: signInButtonKey,
                 onPressed: () => Get.toNamed(AppRoutes.login),
                 child: const Text('Entrar'),
               ),

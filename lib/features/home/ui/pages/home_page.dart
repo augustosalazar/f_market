@@ -12,6 +12,12 @@ import 'package:f_roble_market/features/notifications/ui/viewmodels/notification
 /// La carcasa con la barra inferior. Las pestanas se mantienen vivas en un
 /// `IndexedStack` para no recargar el catalogo cada vez que se vuelve a el.
 class HomePage extends GetView<HomeViewModel> {
+  static const catalogTabKey = Key('home.tab.catalog');
+  static const mineTabKey = Key('home.tab.mine');
+  static const chatsTabKey = Key('home.tab.chats');
+  static const notificationsTabKey = Key('home.tab.notifications');
+  static const profileTabKey = Key('home.tab.profile');
+
   const HomePage({super.key});
 
   @override
@@ -36,21 +42,25 @@ class HomePage extends GetView<HomeViewModel> {
           onDestinationSelected: controller.goTo,
           destinations: [
             const NavigationDestination(
+              key: catalogTabKey,
               icon: Icon(Icons.directions_car_outlined),
               selectedIcon: Icon(Icons.directions_car),
               label: 'Carros',
             ),
             const NavigationDestination(
+              key: mineTabKey,
               icon: Icon(Icons.sell_outlined),
               selectedIcon: Icon(Icons.sell),
               label: 'Lo mio',
             ),
             const NavigationDestination(
+              key: chatsTabKey,
               icon: Icon(Icons.forum_outlined),
               selectedIcon: Icon(Icons.forum),
               label: 'Chats',
             ),
             NavigationDestination(
+              key: notificationsTabKey,
               icon: Badge(
                 isLabelVisible: notifications.unreadCount > 0,
                 label: Text('${notifications.unreadCount}'),
@@ -60,6 +70,7 @@ class HomePage extends GetView<HomeViewModel> {
               label: 'Avisos',
             ),
             const NavigationDestination(
+              key: profileTabKey,
               icon: Icon(Icons.person_outline),
               selectedIcon: Icon(Icons.person),
               label: 'Perfil',

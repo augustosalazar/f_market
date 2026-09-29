@@ -9,6 +9,11 @@ import 'package:f_roble_market/routes/app_routes.dart';
 /// Entrar con correo y contrasena, o con Google si el proyecto lo tiene
 /// encendido (requisito 2).
 class LoginPage extends StatefulWidget {
+  static const emailFieldKey = Key('login.email');
+  static const passwordFieldKey = Key('login.password');
+  static const submitButtonKey = Key('login.submit');
+  static const googleButtonKey = Key('login.google');
+
   const LoginPage({super.key});
 
   @override
@@ -53,6 +58,7 @@ class _LoginPageState extends State<LoginPage> with MessageListener<LoginPage> {
           ),
           const SizedBox(height: 24),
           TextField(
+            key: LoginPage.emailFieldKey,
             controller: email,
             keyboardType: TextInputType.emailAddress,
             autofillHints: const [AutofillHints.email],
@@ -60,6 +66,7 @@ class _LoginPageState extends State<LoginPage> with MessageListener<LoginPage> {
           ),
           const SizedBox(height: 12),
           TextField(
+            key: LoginPage.passwordFieldKey,
             controller: password,
             obscureText: true,
             decoration: const InputDecoration(labelText: 'Contrasena'),
@@ -78,6 +85,7 @@ class _LoginPageState extends State<LoginPage> with MessageListener<LoginPage> {
           }),
           Obx(
             () => FilledButton(
+              key: LoginPage.submitButtonKey,
               onPressed: controller.busy.value
                   ? null
                   : () async {
@@ -104,6 +112,7 @@ class _LoginPageState extends State<LoginPage> with MessageListener<LoginPage> {
                 : Padding(
                     padding: const EdgeInsets.only(top: 12),
                     child: OutlinedButton.icon(
+                      key: LoginPage.googleButtonKey,
                       onPressed: controller.busy.value
                           ? null
                           : () async {
