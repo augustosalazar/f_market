@@ -1,23 +1,51 @@
 # f_roble_market
 
-Mercado de carros usados: catalogo publico, publicaciones con fotos, preguntas
-publicas y chat privado, con avisos para el vendedor y para quien sigue una
-publicacion.
+Mercado de carros usados, hecho con Flutter y Roble (de Uninorte OpenLab) como
+backend. Sirve de proyecto de
+referencia: arquitectura limpia por feature, MVVM con GetX, y pruebas pensadas
+para leerse como plantillas.
 
-**Estado: fase 1.** Toda la UI esta construida y funciona contra una fuente de
-datos local en memoria (`lib/core/data/dummy_data.dart`). Todavia no habla con
-Roble; la fase 2 sustituye los repositorios locales por los de Roble sin tocar
-la UI ni los view models.
+Lo que hace:
+
+- **Catalogo publico**, que se ve sin cuenta: busqueda por texto y filtros por
+  marca, precio y ano. La busqueda se resuelve en el servidor con una consulta
+  guardada.
+- **Publicar** un carro, con marca y modelo de un catalogo cerrado.
+- **Seguir** una publicacion con la estrella, **preguntar** en publico y
+  **chatear** en privado con el vendedor, con los mensajes en tiempo real.
+- **Vender**: el vendedor elige al comprador entre quienes le escribieron, y
+  despues cada uno puede calificar al otro una vez.
+- **Entrar sin cuenta**: un invitado puede seguir carros y preguntar. Si
+  luego guarda su cuenta, conserva todo lo que hizo.
+- **Entrar con correo o con Google**. El boton de Google solo aparece si el
+  proyecto lo tiene encendido en la consola de Roble, y tambien sirve para que
+  un invitado guarde su cuenta.
+
+**Lo que falta:**
+
+- **Fotos.** El proyecto no tiene almacenamiento conectado, asi que publicar no
+  pide fotos y las tarjetas se pintan con un color de fondo.
+- **Avisos.** Se guardan en memoria en el telefono y se pierden al cerrar la
+  app: Roble todavia no los produce desde el servidor.
 
 ## Como correrlo
 
+La app lee a que servidor de Roble conectarse de un archivo `.env`, que **no va
+al repositorio**: cada quien apunta a su propio proyecto.
+
 ```bash
+cp .env.example .env              # y llena ROBLE_CONTRACT_ID y ROBLE_BASE_URL
 flutter pub get
-flutter run
+flutter run --dart-define-from-file=.env
 ```
 
-Cuenta de prueba: `ana@demo.com` / `123456`. El boton de Google entra con esa
-misma cuenta mientras no haya proveedor real.
+No hay valores por defecto. Sin el argumento `--dart-define-from-file=.env`, la
+app no arranca: muestra en pantalla que variables faltan y como arreglarlo.
+Las pruebas no lo necesitan, porque no hablan con Roble.
+
+Para entrar, se registra una cuenta desde la app. La cuenta `ana@demo.com` /
+`123456` solo existe en los datos en memoria (`lib/core/data/dummy_data.dart`)
+que usan las pruebas, no en Roble.
 
 ## Arquitectura
 
@@ -398,13 +426,3 @@ Roble no tiene claves foraneas: `listing_id` apuntando a `listing._id` es
 convencion de nombres. Por eso los nombres van denormalizados en las filas
 (`seller_name`, `asker_name`): la API de lectura tampoco hace joins, y una
 consulta guardada para cada nombre seria peor.
-
-## Fase 2: conectar Roble
-
-Se resuelve escribiendo cinco repositorios contra el paquete `roble` —los
-mismos `I...Repository`— y cambiando las lineas correspondientes de
-`lib/di/app_bindings.dart`. Nada mas de la app deberia moverse.
-
-Las fotos de prueba son ilustraciones en `assets/cars/`. Con Roble pasaran a
-ser URLs: `CarPhoto` ya distingue asset, URL y fichero local, y pinta un
-relleno de color cuando la publicacion no tiene fotos.

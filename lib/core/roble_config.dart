@@ -1,22 +1,26 @@
 /// A que proyecto de Roble apunta la app.
 ///
-/// El `contractId` no es un secreto —identifica el proyecto, no da acceso—,
-/// asi que puede ir en el repositorio. Se puede apuntar a otro proyecto sin
-/// tocar el codigo:
+/// El host y el proyecto salen **solo** del archivo `.env`, que no va al
+/// repositorio: cada quien apunta a su propio proyecto, y el codigo no lleva
+/// escrito el de nadie. Se copia `.env.example` como `.env`, se llena, y se
+/// arranca asi:
 ///
 /// ```bash
-/// flutter run --dart-define=ROBLE_CONTRACT_ID=otro_proyecto
+/// flutter run --dart-define-from-file=.env
 /// ```
+///
+/// Flutter lee el archivo al compilar. Sin ese argumento, los dos valores
+/// quedan vacios y `main` muestra un aviso en vez de arrancar la app.
 abstract class RobleConfig {
-  static const baseUrl = String.fromEnvironment(
-    'ROBLE_BASE_URL',
-    defaultValue: 'https://roble-api.test-openlab.uninorte.edu.co',
-  );
+  static const baseUrl = String.fromEnvironment('ROBLE_BASE_URL');
 
-  static const contractId = String.fromEnvironment(
-    'ROBLE_CONTRACT_ID',
-    defaultValue: 'market_46aeeeed04',
-  );
+  static const contractId = String.fromEnvironment('ROBLE_CONTRACT_ID');
+
+  /// Las variables obligatorias que no llegaron. Vacia si esta todo.
+  static List<String> get missing => [
+    if (baseUrl.isEmpty) 'ROBLE_BASE_URL',
+    if (contractId.isEmpty) 'ROBLE_CONTRACT_ID',
+  ];
 
   /// El **nombre** del destino de retorno del login social, no una URL: la URL
   /// vive en la consola de Roble, y asi cada build elige cual usa sin tocar

@@ -3,6 +3,8 @@ import 'package:get/get.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
+import 'package:f_roble_market/core/missing_config_app.dart';
+import 'package:f_roble_market/core/roble_config.dart';
 import 'package:f_roble_market/core/theme/app_theme.dart';
 import 'package:f_roble_market/di/app_bindings.dart';
 import 'package:f_roble_market/routes/app_pages.dart';
@@ -10,6 +12,19 @@ import 'package:f_roble_market/routes/app_routes.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Sin `.env` no hay a que servidor conectarse. Mejor decirlo en pantalla que
+  // arrancar y fallar despues con un error de red que no explica nada.
+  if (RobleConfig.missing.isNotEmpty) {
+    debugPrint(
+      'Falta configuracion: ${RobleConfig.missing.join(', ')}. '
+      'Copia .env.example como .env y arranca con '
+      '--dart-define-from-file=.env',
+    );
+    runApp(MissingConfigApp(missing: RobleConfig.missing));
+    return;
+  }
+
   await prepareApp();
   runApp(const RobleMarketApp());
 }
