@@ -387,7 +387,7 @@ que cambia respecto a produccion.
 |---|---|---|
 | `test/unit/<feature>/` | view models y repositorios | `flutter test test/unit` |
 | `test/widget/<feature>/` | una pantalla suelta | `flutter test test/widget` |
-| `integration_test/` | la app entera, con `LocalBindings` | `flutter test integration_test -d macos` |
+| `integration_test/` | la app entera, con `LocalBindings` | `flutter test integration_test -d macos` (en Chrome, ver abajo) |
 
 `flutter test` a secas corre `test/`, sin red ni cuenta. Las de integracion
 necesitan un dispositivo (macOS, un emulador) porque arrancan la app de verdad;
@@ -418,6 +418,42 @@ se esta probando.
 Las de integracion se corren mejor en un emulador. En macOS, si la ventana de la
 app queda detras de otra («Failed to foreground app»), el sistema deja de
 pintarla y la prueba se queda esperando un frame que no llega.
+
+#### Las de integracion en Chrome
+
+En la web `flutter test` no sirve: hay que usar `flutter drive`, que maneja
+Chrome a traves de `chromedriver` y recoge el resultado con el puente
+`test_driver/integration_test.dart`.
+
+1. Bajar un `chromedriver` de la **misma version mayor** que el Chrome
+   instalado (en Chrome: *Ajustes → Informacion de Chrome*). La forma mas corta:
+
+   ```bash
+   npx @puppeteer/browsers install chromedriver@<version-de-chrome>
+   ```
+
+   Tambien sirve `brew install chromedriver` si las versiones coinciden.
+
+2. Dejarlo corriendo en otra terminal, en el puerto que espera `flutter drive`:
+
+   ```bash
+   chromedriver --port=4444
+   ```
+
+3. Correr las pruebas:
+
+   ```bash
+   flutter drive \
+     --driver=test_driver/integration_test.dart \
+     --target=integration_test/app_test.dart \
+     -d web-server --browser-name=chrome
+   ```
+
+   Al final debe salir `All tests passed.`. `flutter drive` corre un archivo
+   por vez: si se agregan mas en `integration_test/`, se cambia `--target`.
+
+Con `-d web-server` es `chromedriver` quien abre Chrome, y la corrida termina
+sola. Con `-d chrome` la corrida se quedo colgada sin abrir el navegador.
 
 `test/unit/sin_roble_test.dart` vigila la regla: falla si una prueba usa el
 cliente de Roble, una fuente `roble_...` o `AppBindings`.
