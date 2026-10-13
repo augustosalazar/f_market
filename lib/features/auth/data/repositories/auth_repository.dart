@@ -43,12 +43,22 @@ class AuthRepository implements IAuthRepository {
     return _toUser(await _source.login(email: email, password: password));
   });
 
+  /// El servidor dice que proveedores tiene encendidos; la app solo sabe usar
+  /// Google, asi que lo demas se ignora. Un fallo aqui no merece una pantalla
+  /// rota: queda el login por correo, que es el camino de siempre.
   @override
-  Future<AppUser> signInWithGoogle() async {
-    throw AuthFailure(
-      'El login con Google todavia no esta configurado en este proyecto.',
-    );
+  Future<bool> googleEnabled() async {
+    try {
+      final proveedores = await _source.listProviders();
+      return proveedores.any((p) => p['name'] == 'google');
+    } on RobleApiException {
+      return false;
+    }
   }
+
+  @override
+  Future<AppUser> signInWithGoogle() =>
+      _guard(() async => _toUser(await _source.signInWithGoogle()));
 
   @override
   Future<AppUser> signInAnonymously() => _guard(
@@ -56,6 +66,12 @@ class AuthRepository implements IAuthRepository {
     // El paquete distingue las dos razones por las que un proyecto puede no
     // admitir invitados; para quien mira la pantalla son la misma cosa.
     siNoHayInvitados: true,
+  );
+
+  @override
+  Future<AppUser> upgradeWithGoogle() => _guard(
+    () async => _toUser(await _source.upgradeWithGoogle()),
+    alEnlazar: true,
   );
 
   @override
@@ -99,9 +115,24 @@ class AuthRepository implements IAuthRepository {
   Future<AppUser> _guard(
     Future<AppUser> Function() action, {
     bool siNoHayInvitados = false,
+    bool alEnlazar = false,
   }) async {
     try {
       return await action();
+    } on RobleApiConflictException {
+      // El mismo 409 significa dos cosas distintas, y confundirlas manda a
+      // quien lo lee a arreglar lo que no es. Al enlazar: esa cuenta de Google
+      // ya es de otro usuario. Al entrar: Google no certifico el correo y ese
+      // correo ya tiene cuenta aqui. En los dos casos Roble no fusiona nada,
+      // asi que reintentar no cambia nada.
+      throw AuthFailure(
+        alEnlazar
+            ? 'Esa cuenta de Google ya esta en otro usuario de la app. Usa '
+                  'otra, o guarda esta con tu correo y una contrasena.'
+            : 'Ese correo ya tiene cuenta en la app. Entra con tu contrasena '
+                  'para usarla.',
+        code: AuthFailure.emailTaken,
+      );
     } on RobleAnonUpgradeEmailTakenException {
       throw AuthFailure(
         'Ya hay una cuenta con ese correo. Si es tuya, entra con ella: lo que '

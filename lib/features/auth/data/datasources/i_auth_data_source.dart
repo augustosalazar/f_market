@@ -19,8 +19,20 @@ abstract class IAuthDataSource {
     required String password,
   });
 
+  /// Los proveedores de identidad encendidos en el proyecto, tal como los
+  /// devuelve el servidor. No pide sesion.
+  Future<List<Map<String, dynamic>>> listProviders();
+
+  /// Abre Google y, al volver, deja la sesion abierta. Devuelve el perfil,
+  /// igual que [login].
+  Future<Map<String, dynamic>> signInWithGoogle();
+
   /// Abre una sesion de invitado: un usuario real, sin correo ni clave.
   Future<Map<String, dynamic>> signInAnonymously();
+
+  /// Convierte al invitado de esta sesion en una cuenta enlazando Google,
+  /// conservando su `userId`. Devuelve el perfil ya ascendido.
+  Future<Map<String, dynamic>> upgradeWithGoogle();
 
   /// Convierte al invitado de esta sesion en una cuenta, **conservando su
   /// `userId`** y por tanto todo lo que escribio.

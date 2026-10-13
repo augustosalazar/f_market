@@ -66,5 +66,20 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.example.fRobleMarket.sso</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<!-- Retorno del enlace con Google. Mismo esquema que
+				     RobleConfig.mobileCallbackScheme. -->
+				<string>roblemarket</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

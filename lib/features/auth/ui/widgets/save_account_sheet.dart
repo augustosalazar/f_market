@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
 
-/// Lo que devuelve la hoja de «guarda tu cuenta».
-class SaveAccountData {
+/// Lo que devuelve la hoja de «guarda tu cuenta»: o los datos escritos, o la
+/// decision de hacerlo con Google.
+sealed class SaveAccountChoice {
+  const SaveAccountChoice();
+}
+
+/// Guardar la cuenta con Google, sin escribir nada.
+class SaveAccountWithGoogle extends SaveAccountChoice {
+  const SaveAccountWithGoogle();
+}
+
+/// Guardar la cuenta con correo y contrasena.
+class SaveAccountData extends SaveAccountChoice {
   const SaveAccountData({
     required this.name,
     required this.email,
@@ -26,7 +37,12 @@ class SaveAccountSheet extends StatefulWidget {
     super.key,
     this.followedCount = 0,
     this.initialName,
+    this.googleEnabled = false,
   });
+
+  /// Si el proyecto tiene Google encendido. Sin el, el boton no se pinta: con
+  /// Google apagado siempre fallaria.
+  final bool googleEnabled;
 
   /// El nombre con el que ya viene firmando, si dio uno para preguntar. Que la
   /// cuenta nazca con otro nombre distinto al de sus preguntas seria raro.
@@ -81,6 +97,32 @@ class _SaveAccountSheetState extends State<SaveAccountSheet> {
             style: text.bodySmall,
           ),
           const SizedBox(height: 16),
+          if (widget.googleEnabled) ...[
+            // Primero, porque es el camino corto: no hay nada que escribir y
+            // conserva lo suyo igual que el otro.
+            OutlinedButton.icon(
+              onPressed: () => Navigator.of(
+                context,
+              ).pop(const SaveAccountWithGoogle()),
+              icon: const Icon(Icons.g_mobiledata, size: 28),
+              label: const Text('Guardar con Google'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Expanded(child: Divider()),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text('o con tu correo', style: text.bodySmall),
+                ),
+                const Expanded(child: Divider()),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
           TextField(
             controller: _name,
             textCapitalization: TextCapitalization.words,

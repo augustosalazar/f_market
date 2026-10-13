@@ -8,6 +8,10 @@ import 'package:f_roble_market/features/vehicles/domain/models/car_brand.dart';
 /// solo lleva marca. Lo demas —precio, ano— sigue donde estaba, porque son
 /// rangos y no caben en un chip.
 class BrandStrip extends StatelessWidget {
+  /// El chip de una marca; `null` es «Todas».
+  static Key chipKey(String? brand) =>
+      ValueKey('brandStrip.${brand ?? 'all'}');
+
   const BrandStrip({
     super.key,
     required this.brands,
@@ -36,6 +40,7 @@ class BrandStrip extends StatelessWidget {
         itemBuilder: (context, index) {
           if (index == 0) {
             return ChoiceChip(
+              key: chipKey(null),
               label: const Text('Todas'),
               selected: selected == null,
               onSelected: (_) => onSelected(null),
@@ -43,6 +48,7 @@ class BrandStrip extends StatelessWidget {
           }
           final brand = brands[index - 1];
           return ChoiceChip(
+            key: chipKey(brand.name),
             label: Text(brand.name),
             selected: selected == brand.name,
             // Volver a tocar la marca elegida la quita: es lo que espera quien

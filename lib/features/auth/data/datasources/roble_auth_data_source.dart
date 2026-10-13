@@ -32,10 +32,41 @@ class RobleAuthDataSource implements IAuthDataSource {
     required String password,
   }) => _client.db.register(email: email, password: password, name: name);
 
+  /// Una sola llamada devuelve los proveedores activos, asi que anadir uno en
+  /// la consola no obliga a tocar la app.
+  @override
+  Future<List<Map<String, dynamic>>> listProviders() async {
+    final proveedores = await _client.db.listProviders();
+    return [
+      for (final p in proveedores)
+        {
+          'name': p.name,
+          'displayName': p.displayName,
+          'autoLinkSupported': p.autoLinkSupported,
+        },
+    ];
+  }
+
+  /// El paquete elige el camino segun la plataforma: en movil el selector
+  /// nativo de Google, sin navegador ni retorno que enrutar; en web, una
+  /// ventana emergente.
+  @override
+  Future<Map<String, dynamic>> signInWithGoogle() async {
+    await _client.db.signInWithGoogle();
+    // El perfil no viene con los tokens: se pide aparte, igual que en `login`.
+    return _client.db.currentUser();
+  }
+
   @override
   Future<Map<String, dynamic>> signInAnonymously() async {
     await _client.db.signInAnonymously();
     // El perfil no viene con los tokens: se pide aparte, igual que en `login`.
+    return _client.db.currentUser();
+  }
+
+  @override
+  Future<Map<String, dynamic>> upgradeWithGoogle() async {
+    await _client.linkGoogle();
     return _client.db.currentUser();
   }
 

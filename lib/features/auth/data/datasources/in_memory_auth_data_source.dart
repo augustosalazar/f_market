@@ -23,6 +23,19 @@ class InMemoryAuthDataSource implements IAuthDataSource {
     return session;
   }
 
+  /// La fase local no habla con ningun proveedor: la pantalla no pintara
+  /// ningun boton social, que es la verdad aqui.
+  @override
+  Future<List<Map<String, dynamic>>> listProviders() async => const [];
+
+  @override
+  Future<Map<String, dynamic>> signInWithGoogle() async =>
+      throw StateError('Sin servidor no hay login con Google.');
+
+  @override
+  Future<Map<String, dynamic>> upgradeWithGoogle() async =>
+      throw StateError('Sin servidor no hay login con Google.');
+
   @override
   Future<Map<String, dynamic>> login({
     required String email,

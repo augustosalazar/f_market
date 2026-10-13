@@ -26,6 +26,11 @@ class SessionViewModel extends GetxController {
   /// Lo que hay que decirle a quien se quedo sin sesion sin pedirlo.
   final expired = RxnString();
 
+  /// Si el proyecto tiene Google encendido. `false` hasta que se pregunta, y
+  /// `false` tambien si el servidor no contesta: el boton no se pinta hasta
+  /// saber que existe.
+  final googleEnabled = false.obs;
+
   StreamSubscription<void>? _expiry;
 
   @override
@@ -131,6 +136,14 @@ class SessionViewModel extends GetxController {
 
   Future<bool> signInWithGoogle() => _run(_auth.signInWithGoogle);
 
+  /// Pregunta al servidor si Google esta encendido. Se llama al abrir el
+  /// login, y no en el arranque: sin sesion la app entra directa al catalogo,
+  /// y esto solo hace falta cuando alguien va a entrar.
+  Future<void> loadProviders() async {
+    if (googleEnabled.value) return;
+    googleEnabled.value = await _auth.googleEnabled();
+  }
+
   Future<void> logout() async {
     await _auth.logout();
     user.value = null;
@@ -165,6 +178,13 @@ class SessionViewModel extends GetxController {
     error.value = null;
     return ensureLoggedIn();
   }
+
+  /// Lo mismo, pero con Google: ni correo ni contrasena que escribir.
+  Future<bool> upgradeWithGoogle() => _run(() async {
+    final cuenta = await _auth.upgradeWithGoogle();
+    guestName.value = null;
+    return cuenta;
+  });
 
   /// Convierte al invitado en una cuenta conservando todo lo suyo.
   Future<bool> upgrade({

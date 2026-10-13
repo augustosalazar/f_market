@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<title>Listo</title>
+<!--
+  Retorno del enlace con Google en web. Recoge la URL con el `code` y se la
+  manda a la ventana de la app, que es quien lo canjea.
+
+  El destino registrado en la consola de Roble para enlazar tiene que apuntar
+  aqui: `<origen>/auth.html`.
+-->
+<p>Ya puedes cerrar esta ventana.</p>
+<script>
+  const message = { 'flutter-web-auth-2': window.location.href };
+  if (window.opener) {
+    window.opener.postMessage(message, window.location.origin);
+    window.close();
+  } else if (window.parent && window.parent !== window) {
+    window.parent.postMessage(message, window.location.origin);
+  } else {
+    localStorage.setItem('flutter-web-auth-2', window.location.href);
+    window.close();
+  }
+</script>

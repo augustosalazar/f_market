@@ -1,23 +1,51 @@
 # f_roble_market
 
-Mercado de carros usados: catalogo publico, publicaciones con fotos, preguntas
-publicas y chat privado, con avisos para el vendedor y para quien sigue una
-publicacion.
+Mercado de carros usados, hecho con Flutter y Roble (de Uninorte OpenLab) como
+backend. Sirve de proyecto de
+referencia: arquitectura limpia por feature, MVVM con GetX, y pruebas pensadas
+para leerse como plantillas.
 
-**Estado: fase 1.** Toda la UI esta construida y funciona contra una fuente de
-datos local en memoria (`lib/core/data/dummy_data.dart`). Todavia no habla con
-Roble; la fase 2 sustituye los repositorios locales por los de Roble sin tocar
-la UI ni los view models.
+Lo que hace:
+
+- **Catalogo publico**, que se ve sin cuenta: busqueda por texto y filtros por
+  marca, precio y ano. La busqueda se resuelve en el servidor con una consulta
+  guardada.
+- **Publicar** un carro, con marca y modelo de un catalogo cerrado.
+- **Seguir** una publicacion con la estrella, **preguntar** en publico y
+  **chatear** en privado con el vendedor, con los mensajes en tiempo real.
+- **Vender**: el vendedor elige al comprador entre quienes le escribieron, y
+  despues cada uno puede calificar al otro una vez.
+- **Entrar sin cuenta**: un invitado puede seguir carros y preguntar. Si
+  luego guarda su cuenta, conserva todo lo que hizo.
+- **Entrar con correo o con Google**. El boton de Google solo aparece si el
+  proyecto lo tiene encendido en la consola de Roble, y tambien sirve para que
+  un invitado guarde su cuenta.
+
+**Lo que falta:**
+
+- **Fotos.** El proyecto no tiene almacenamiento conectado, asi que publicar no
+  pide fotos y las tarjetas se pintan con un color de fondo.
+- **Avisos.** Se guardan en memoria en el telefono y se pierden al cerrar la
+  app: Roble todavia no los produce desde el servidor.
 
 ## Como correrlo
 
+La app lee a que servidor de Roble conectarse de un archivo `.env`, que **no va
+al repositorio**: cada quien apunta a su propio proyecto.
+
 ```bash
+cp .env.example .env              # y llena ROBLE_CONTRACT_ID y ROBLE_BASE_URL
 flutter pub get
-flutter run
+flutter run --dart-define-from-file=.env
 ```
 
-Cuenta de prueba: `ana@demo.com` / `123456`. El boton de Google entra con esa
-misma cuenta mientras no haya proveedor real.
+No hay valores por defecto. Sin el argumento `--dart-define-from-file=.env`, la
+app no arranca: muestra en pantalla que variables faltan y como arreglarlo.
+Las pruebas no lo necesitan, porque no hablan con Roble.
+
+Para entrar, se registra una cuenta desde la app. La cuenta `ana@demo.com` /
+`123456` solo existe en los datos en memoria (`lib/core/data/dummy_data.dart`)
+que usan las pruebas, no en Roble.
 
 ## Arquitectura
 
@@ -349,39 +377,52 @@ lista. **La API rechaza los arrays JSON** en una columna `jsonb` (400
 requisito ya limita a tres fotos, tres columnas dejan el tope estructural y se
 leen de un viaje.
 
-### El smoke
+### Las pruebas
 
-`test/smoke_test.dart` comprueba la conexion real: registra una cuenta
-desechable, entra, escribe en el arbol JSON, escucha el cambio y borra lo que
-creo. Se corre a mano, no en CI:
+Ninguna habla con Roble: probar el servidor no es trabajo de esta app. Todas
+usan las fuentes de datos en memoria (`InMemory...DataSource`), que es lo unico
+que cambia respecto a produccion.
 
-```bash
-set -a && . ./.roble.mcp.env && set +a
-flutter test test/smoke_test.dart --reporter expanded
-```
+| Carpeta | Que prueba | Como se corre |
+|---|---|---|
+| `test/unit/<feature>/` | view models y repositorios | `flutter test test/unit` |
+| `test/widget/<feature>/` | una pantalla suelta | `flutter test test/widget` |
+| `integration_test/` | la app entera, con `LocalBindings` | `flutter test integration_test -d macos` |
 
-Es el que trae la skill `use-roble` con **una correccion**: el original escucha
-la coleccion antes de crearla, y por eso su paso de tiempo real no puede pasar.
+`flutter test` a secas corre `test/`, sin red ni cuenta. Las de integracion
+necesitan un dispositivo (macOS, un emulador) porque arrancan la app de verdad;
+lo unico que se les cambia es de donde salen los datos:
+`RobleMarketApp(bindings: LocalBindings())`.
 
-### La prueba de integracion
+**Una prueba unitaria prueba una sola pieza**, y lo que esa pieza usa es un
+falso escrito a mano. Con `extends Fake implements ...` solo se escriben los
+metodos que la prueba necesita. Cada archivo sirve de plantilla para un caso:
 
-`test/roble_integration_test.dart` recorre el flujo entero contra el servidor
-—publicar, seguir, preguntar, responder, cambiar de estado, chatear con tiempo
-real— con dos cuentas desechables que se borran al terminar. Se corre igual que
-el smoke, y **necesita los permisos de arriba**: sin ellos falla en la primera
-operacion que no sea INSERT o SELECT.
+| Archivo | Que ensena |
+|---|---|
+| `unit/listings/listing_filter_test.dart` | dominio puro: sin nada falso |
+| `unit/auth/session_view_model_test.dart` | un view model: validaciones y estado, con repositorio falso |
+| `unit/auth/auth_repository_test.dart` | un repositorio: convertir filas y traducir errores, con fuente falsa |
+| `unit/listings/listing_repository_test.dart` | lo mismo con publicaciones: precio en texto, orden, un 404 |
+| `widget/listings/listing_card_test.dart` | un widget sin estado: datos y funciones, nada falso |
+| `widget/auth/login_page_test.dart` | una pantalla con su view model: errores visibles, boton que aparece o no |
+| `widget/listings/catalog_page_test.dart` | una pantalla que lista datos: el repositorio falso anota lo que le piden |
+
+**Se toca por clave, se comprueba por texto.** Para llegar a un boton, un
+campo o una tarjeta, las pruebas usan claves (`find.byKey(LoginPage.submitButtonKey)`),
+declaradas como constantes en el propio widget: si cambia el texto del boton,
+la prueba no se rompe. Para comprobar lo que la persona lee —un mensaje de
+error, el nombre en el perfil—, se busca el texto, porque ese texto *es* lo que
+se esta probando.
+
+Las de integracion se corren mejor en un emulador. En macOS, si la ventana de la
+app queda detras de otra («Failed to foreground app»), el sistema deja de
+pintarla y la prueba se queda esperando un frame que no llega.
+
+`test/unit/sin_roble_test.dart` vigila la regla: falla si una prueba usa el
+cliente de Roble, una fuente `roble_...` o `AppBindings`.
 
 Roble no tiene claves foraneas: `listing_id` apuntando a `listing._id` es
 convencion de nombres. Por eso los nombres van denormalizados en las filas
 (`seller_name`, `asker_name`): la API de lectura tampoco hace joins, y una
 consulta guardada para cada nombre seria peor.
-
-## Fase 2: conectar Roble
-
-Se resuelve escribiendo cinco repositorios contra el paquete `roble` —los
-mismos `I...Repository`— y cambiando las lineas correspondientes de
-`lib/di/app_bindings.dart`. Nada mas de la app deberia moverse.
-
-Las fotos de prueba son ilustraciones en `assets/cars/`. Con Roble pasaran a
-ser URLs: `CarPhoto` ya distingue asset, URL y fichero local, y pinta un
-relleno de color cuando la publicacion no tiene fotos.
